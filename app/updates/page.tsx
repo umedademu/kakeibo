@@ -8,6 +8,15 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.14",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "固定費の列順を変更",
+    changes: [
+      "固定費の入力欄、登録済み一覧、編集欄を、支払日、項目名、金額の順に統一しました。",
+    ],
+  },
+  {
     version: "v0.1.13",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

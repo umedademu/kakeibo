@@ -168,6 +168,23 @@ export default function FixedCostManager() {
 
       <form aria-label="固定費の新規追加" className="fixed-cost-form" onSubmit={addFixedCost}>
         <input
+          aria-label="支払日"
+          inputMode="numeric"
+          max="31"
+          min="1"
+          onChange={(event) =>
+            setNewDraft((current) => ({
+              ...current,
+              paymentDay: event.target.value,
+            }))
+          }
+          placeholder="支払日"
+          required
+          step="1"
+          type="number"
+          value={newDraft.paymentDay}
+        />
+        <input
           aria-label="項目名"
           maxLength={80}
           onChange={(event) =>
@@ -191,23 +208,6 @@ export default function FixedCostManager() {
           type="number"
           value={newDraft.amount}
         />
-        <input
-          aria-label="支払日"
-          inputMode="numeric"
-          max="31"
-          min="1"
-          onChange={(event) =>
-            setNewDraft((current) => ({
-              ...current,
-              paymentDay: event.target.value,
-            }))
-          }
-          placeholder="支払日"
-          required
-          step="1"
-          type="number"
-          value={newDraft.paymentDay}
-        />
         <button className="primary-button" disabled={saving} type="submit">
           {saving ? "保存中…" : "追加"}
         </button>
@@ -230,6 +230,24 @@ export default function FixedCostManager() {
             <li key={item.id}>
               {editingId === item.id ? (
                 <form className="fixed-cost-edit-form" onSubmit={saveEdit}>
+                  <label>
+                    支払日
+                    <input
+                      inputMode="numeric"
+                      max="31"
+                      min="1"
+                      onChange={(event) =>
+                        setEditDraft((current) => ({
+                          ...current,
+                          paymentDay: event.target.value,
+                        }))
+                      }
+                      required
+                      step="1"
+                      type="number"
+                      value={editDraft.paymentDay}
+                    />
+                  </label>
                   <label>
                     項目名
                     <input
@@ -256,24 +274,6 @@ export default function FixedCostManager() {
                       value={editDraft.amount}
                     />
                   </label>
-                  <label>
-                    支払日
-                    <input
-                      inputMode="numeric"
-                      max="31"
-                      min="1"
-                      onChange={(event) =>
-                        setEditDraft((current) => ({
-                          ...current,
-                          paymentDay: event.target.value,
-                        }))
-                      }
-                      required
-                      step="1"
-                      type="number"
-                      value={editDraft.paymentDay}
-                    />
-                  </label>
                   <div className="fixed-cost-edit-actions">
                     <button className="primary-button" disabled={saving} type="submit">
                       保存する
@@ -290,10 +290,8 @@ export default function FixedCostManager() {
                 </form>
               ) : (
                 <div className="fixed-cost-row">
-                  <div>
-                    <h3>{item.name}</h3>
-                    <p>毎月{item.paymentDay}日</p>
-                  </div>
+                  <p>毎月{item.paymentDay}日</p>
+                  <h3>{item.name}</h3>
                   <strong>{item.amount.toLocaleString("ja-JP")}円</strong>
                   <button
                     className="edit-button"

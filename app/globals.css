@@ -458,7 +458,7 @@ a {
 
 .fixed-cost-form {
   display: grid;
-  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.8fr) auto;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.4fr) minmax(0, 1fr) auto;
   gap: 8px;
 }
 
@@ -550,7 +550,7 @@ a {
 
 .fixed-cost-row {
   display: grid;
-  grid-template-columns: 1fr auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 18px;
 }
@@ -561,13 +561,15 @@ a {
 }
 
 .fixed-cost-row h3 {
+  min-width: 0;
   font-size: 1rem;
+  overflow-wrap: anywhere;
 }
 
 .fixed-cost-row p {
-  margin-top: 5px;
   color: rgb(24 57 43 / 65%);
   font-size: 0.78rem;
+  white-space: nowrap;
 }
 
 .fixed-cost-row strong {
@@ -577,7 +579,7 @@ a {
 
 .fixed-cost-edit-form {
   display: grid;
-  grid-template-columns: 1.4fr 1fr 0.8fr auto;
+  grid-template-columns: 0.8fr 1.4fr 1fr auto;
   align-items: end;
   gap: 12px;
 }
@@ -635,11 +637,7 @@ a {
   }
 
   .fixed-cost-row {
-    grid-template-columns: 1fr auto;
-  }
-
-  .fixed-cost-row .edit-button {
-    grid-column: 1 / -1;
-    justify-self: start;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    gap: 8px;
   }
 }
