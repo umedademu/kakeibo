@@ -55,6 +55,48 @@ async function updateWallet(request, env) {
   return json({ amount, updatedAt });
 }
 
+async function syncSavedBallBalance(env, recordedAt) {
+  if (!env.SHUSHI_SERVICE || !env.SHUSHI_READ_SECRET) {
+    throw new Error("貯玉の接続設定がありません。");
+  }
+
+  const response = await env.SHUSHI_SERVICE.fetch("https://shushi/saved-total", {
+    headers: { Authorization: `Bearer ${env.SHUSHI_READ_SECRET}` },
+  });
+
+  if (!response.ok) {
+    throw new Error(`貯玉の取得に失敗しました: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const amount = data?.amount;
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    throw new Error("取得した貯玉残高が正しくありません。");
+  }
+
+  const current = await env.DB.prepare(
+    "SELECT amount FROM current_balances WHERE account_id = ?",
+  )
+    .bind("pachinko")
+    .first();
+  const statements = [
+    env.DB.prepare(
+      "UPDATE current_balances SET amount = ?, updated_at = ? WHERE account_id = ?",
+    ).bind(amount, recordedAt, "pachinko"),
+  ];
+
+  if (current?.amount !== amount) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO balance_events (account_id, amount, recorded_at) VALUES (?, ?, ?)",
+      ).bind("pachinko", amount, recordedAt),
+    );
+  }
+
+  await env.DB.batch(statements);
+  return { amount, sourceUpdatedAt: data.sourceUpdatedAt ?? null, updatedAt: recordedAt };
+}
+
 function previousDateInJapan(scheduledTime) {
   const japanTime = new Date(scheduledTime + 9 * 60 * 60 * 1000);
   japanTime.setUTCDate(japanTime.getUTCDate() - 1);
@@ -92,6 +134,15 @@ const worker = {
       return updateWallet(request, env);
     }
 
+    if (url.pathname === "/sync/pachinko" && request.method === "POST") {
+      try {
+        return json(await syncSavedBallBalance(env, new Date().toISOString()));
+      } catch (error) {
+        console.error(error);
+        return json({ error: "貯玉残高を更新できませんでした。" }, 502);
+      }
+    }
+
     if (url.pathname === "/balances" && request.method === "GET") {
       const result = await env.DB.prepare(
         "SELECT account_id AS accountId, amount, updated_at AS updatedAt FROM current_balances ORDER BY sort_order",
@@ -108,7 +159,17 @@ const worker = {
   },
 
   async scheduled(event, env, ctx) {
-    ctx.waitUntil(saveDailySnapshot(env, event.scheduledTime));
+    ctx.waitUntil(
+      (async () => {
+        try {
+          await syncSavedBallBalance(env, new Date(event.scheduledTime).toISOString());
+        } catch (error) {
+          console.error(error);
+        }
+
+        await saveDailySnapshot(env, event.scheduledTime);
+      })(),
+    );
   },
 };
 

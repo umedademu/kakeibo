@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.4",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "貯玉残高の自動連携に対応",
+    changes: [
+      "収支管理アプリに保存された全店舗合計の貯玉を、円換算して取り込むようにしました。",
+      "毎日午前4時に最新の貯玉残高を取得し、前日分として自動記録します。",
+    ],
+  },
+  {
     version: "v0.1.3",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

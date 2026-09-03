@@ -2,20 +2,22 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-const fixedBalances = [
-  { name: "PayPay", amount: 0 },
-  { name: "PayPay銀行", amount: 0 },
-  { name: "貯玉", amount: 0 },
-  { name: "FX口座", amount: 0 },
+const otherAccounts = [
+  { accountId: "paypay", name: "PayPay" },
+  { accountId: "paypay_bank", name: "PayPay銀行" },
+  { accountId: "pachinko", name: "貯玉" },
+  { accountId: "fx", name: "FX口座" },
 ];
 
-type WalletResponse = {
+type BalanceResponse = {
+  accountId: string;
+  name: string;
   amount: number;
   updatedAt: string | null;
 };
 
 export default function BalanceList() {
-  const [wallet, setWallet] = useState<WalletResponse | null>(null);
+  const [balances, setBalances] = useState<Record<string, BalanceResponse>>({});
   const [input, setInput] = useState("0");
   const [message, setMessage] = useState("残高を読み込んでいます。");
   const [saving, setSaving] = useState(false);
@@ -23,21 +25,23 @@ export default function BalanceList() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/wallet", { cache: "no-store" })
+    fetch("/api/balances", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) {
           throw new Error("残高を読み込めませんでした。");
         }
 
-        return (await response.json()) as WalletResponse;
+        return (await response.json()) as BalanceResponse[];
       })
-      .then((data) => {
+      .then((items) => {
         if (!active) return;
-        setWallet(data);
-        setInput(String(data.amount));
+        const nextBalances = Object.fromEntries(items.map((item) => [item.accountId, item]));
+        const wallet = nextBalances.wallet;
+        setBalances(nextBalances);
+        setInput(String(wallet?.amount ?? 0));
         setMessage(
-          data.updatedAt
-            ? `最終更新：${new Date(data.updatedAt).toLocaleString("ja-JP")}`
+          wallet?.updatedAt
+            ? `最終更新：${new Date(wallet.updatedAt).toLocaleString("ja-JP")}`
             : "まだ残高は変更されていません。",
         );
       })
@@ -75,8 +79,16 @@ export default function BalanceList() {
         throw new Error("保存できませんでした。");
       }
 
-      const data = (await response.json()) as WalletResponse;
-      setWallet(data);
+      const data = (await response.json()) as Pick<BalanceResponse, "amount" | "updatedAt">;
+      setBalances((current) => ({
+        ...current,
+        wallet: {
+          accountId: "wallet",
+          name: "財布",
+          amount: data.amount,
+          updatedAt: data.updatedAt,
+        },
+      }));
       setInput(String(data.amount));
       setMessage("保存しました。ほかの端末にも同じ残高が表示されます。");
     } catch {
@@ -111,7 +123,7 @@ export default function BalanceList() {
                 value={input}
               />
               <span>円</span>
-              <button disabled={saving || wallet === null} type="submit">
+              <button disabled={saving || !balances.wallet} type="submit">
                 {saving ? "保存中" : "保存"}
               </button>
             </form>
@@ -121,10 +133,10 @@ export default function BalanceList() {
           </p>
         </div>
 
-        {fixedBalances.map((balance) => (
-          <div className="balance-row" key={balance.name}>
-            <dt>{balance.name}</dt>
-            <dd>{balance.amount.toLocaleString("ja-JP")}円</dd>
+        {otherAccounts.map((account) => (
+          <div className="balance-row" key={account.accountId}>
+            <dt>{account.name}</dt>
+            <dd>{(balances[account.accountId]?.amount ?? 0).toLocaleString("ja-JP")}円</dd>
           </div>
         ))}
       </dl>
