@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.5",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "PayPay残高の手動入力に対応",
+    changes: [
+      "PayPayとPayPay銀行の残高を、財布と同じように入力して保存できるようにしました。",
+      "保存した残高は共通の保管先へ反映され、パソコンとスマートフォンで共有されます。",
+    ],
+  },
+  {
     version: "v0.1.4",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

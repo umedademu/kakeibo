@@ -6,6 +6,8 @@ const accountNames = {
   fx: "FX口座",
 };
 
+const manuallyEditableAccountIds = new Set(["wallet", "paypay", "paypay_bank"]);
+
 function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -21,11 +23,11 @@ function authorized(request, env) {
   return Boolean(env.KAKEIBO_API_SECRET) && authorization === `Bearer ${env.KAKEIBO_API_SECRET}`;
 }
 
-async function getWallet(env) {
+async function getBalance(env, accountId) {
   const row = await env.DB.prepare(
     "SELECT amount, updated_at AS updatedAt FROM current_balances WHERE account_id = ?",
   )
-    .bind("wallet")
+    .bind(accountId)
     .first();
 
   return {
@@ -34,7 +36,7 @@ async function getWallet(env) {
   };
 }
 
-async function updateWallet(request, env) {
+async function updateBalance(request, env, accountId) {
   const body = await request.json().catch(() => null);
   const amount = body?.amount;
 
@@ -46,10 +48,10 @@ async function updateWallet(request, env) {
   await env.DB.batch([
     env.DB.prepare(
       "UPDATE current_balances SET amount = ?, updated_at = ? WHERE account_id = ?",
-    ).bind(amount, updatedAt, "wallet"),
+    ).bind(amount, updatedAt, accountId),
     env.DB.prepare(
       "INSERT INTO balance_events (account_id, amount, recorded_at) VALUES (?, ?, ?)",
-    ).bind("wallet", amount, updatedAt),
+    ).bind(accountId, amount, updatedAt),
   ]);
 
   return json({ amount, updatedAt });
@@ -125,13 +127,15 @@ const worker = {
     }
 
     const url = new URL(request.url);
+    const balancePath = url.pathname.match(/^\/balances\/([^/]+)$/);
+    const accountId = balancePath?.[1];
 
-    if (url.pathname === "/balances/wallet" && request.method === "GET") {
-      return json(await getWallet(env));
+    if (accountId && manuallyEditableAccountIds.has(accountId) && request.method === "GET") {
+      return json(await getBalance(env, accountId));
     }
 
-    if (url.pathname === "/balances/wallet" && request.method === "PUT") {
-      return updateWallet(request, env);
+    if (accountId && manuallyEditableAccountIds.has(accountId) && request.method === "PUT") {
+      return updateBalance(request, env, accountId);
     }
 
     if (url.pathname === "/sync/pachinko" && request.method === "POST") {

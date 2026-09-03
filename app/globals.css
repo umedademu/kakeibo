@@ -75,23 +75,23 @@ a {
   border-bottom: 1px solid rgb(24 57 43 / 24%);
 }
 
-.wallet-row {
+.editable-balance-row {
   display: grid;
   grid-template-columns: auto 1fr;
 }
 
-.wallet-row dd {
+.editable-balance-row dd {
   justify-self: end;
 }
 
-.wallet-form {
+.balance-form {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 7px;
 }
 
-.wallet-form input {
+.balance-form input {
   width: min(35vw, 150px);
   border: 1px solid rgb(24 57 43 / 32%);
   border-radius: 7px;
@@ -103,7 +103,7 @@ a {
   text-align: right;
 }
 
-.wallet-form button,
+.balance-form button,
 .login-form button,
 .logout-button {
   border: 1px solid var(--foreground);
@@ -115,18 +115,18 @@ a {
   font-weight: 600;
 }
 
-.wallet-form button {
+.balance-form button {
   padding: 8px 11px;
 }
 
-.wallet-form button:disabled,
+.balance-form button:disabled,
 .login-form button:disabled,
 .logout-button:disabled {
   cursor: wait;
   opacity: 0.55;
 }
 
-.wallet-message {
+.balance-message {
   grid-column: 1 / -1;
   margin: 5px 0 0;
   color: rgb(24 57 43 / 65%);

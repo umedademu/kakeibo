@@ -2,9 +2,15 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-const otherAccounts = [
+type ManualAccountId = "wallet" | "paypay" | "paypay_bank";
+
+const manualAccounts: { accountId: ManualAccountId; name: string }[] = [
+  { accountId: "wallet", name: "財布" },
   { accountId: "paypay", name: "PayPay" },
   { accountId: "paypay_bank", name: "PayPay銀行" },
+];
+
+const readonlyAccounts = [
   { accountId: "pachinko", name: "貯玉" },
   { accountId: "fx", name: "FX口座" },
 ];
@@ -16,11 +22,29 @@ type BalanceResponse = {
   updatedAt: string | null;
 };
 
+const initialInputs: Record<ManualAccountId, string> = {
+  wallet: "0",
+  paypay: "0",
+  paypay_bank: "0",
+};
+
+const initialMessages: Record<ManualAccountId, string> = {
+  wallet: "残高を読み込んでいます。",
+  paypay: "残高を読み込んでいます。",
+  paypay_bank: "残高を読み込んでいます。",
+};
+
+function updatedMessage(balance: BalanceResponse | undefined) {
+  return balance?.updatedAt
+    ? `最終更新：${new Date(balance.updatedAt).toLocaleString("ja-JP")}`
+    : "まだ残高は変更されていません。";
+}
+
 export default function BalanceList() {
   const [balances, setBalances] = useState<Record<string, BalanceResponse>>({});
-  const [input, setInput] = useState("0");
-  const [message, setMessage] = useState("残高を読み込んでいます。");
-  const [saving, setSaving] = useState(false);
+  const [inputs, setInputs] = useState(initialInputs);
+  const [messages, setMessages] = useState(initialMessages);
+  const [savingAccount, setSavingAccount] = useState<ManualAccountId | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -36,18 +60,26 @@ export default function BalanceList() {
       .then((items) => {
         if (!active) return;
         const nextBalances = Object.fromEntries(items.map((item) => [item.accountId, item]));
-        const wallet = nextBalances.wallet;
         setBalances(nextBalances);
-        setInput(String(wallet?.amount ?? 0));
-        setMessage(
-          wallet?.updatedAt
-            ? `最終更新：${new Date(wallet.updatedAt).toLocaleString("ja-JP")}`
-            : "まだ残高は変更されていません。",
-        );
+        setInputs({
+          wallet: String(nextBalances.wallet?.amount ?? 0),
+          paypay: String(nextBalances.paypay?.amount ?? 0),
+          paypay_bank: String(nextBalances.paypay_bank?.amount ?? 0),
+        });
+        setMessages({
+          wallet: updatedMessage(nextBalances.wallet),
+          paypay: updatedMessage(nextBalances.paypay),
+          paypay_bank: updatedMessage(nextBalances.paypay_bank),
+        });
       })
       .catch(() => {
         if (active) {
-          setMessage("残高を読み込めませんでした。しばらくしてから再度お試しください。");
+          const errorMessage = "残高を読み込めませんでした。しばらくしてから再度お試しください。";
+          setMessages({
+            wallet: errorMessage,
+            paypay: errorMessage,
+            paypay_bank: errorMessage,
+          });
         }
       });
 
@@ -56,20 +88,23 @@ export default function BalanceList() {
     };
   }, []);
 
-  async function saveWallet(event: FormEvent<HTMLFormElement>) {
+  async function saveBalance(event: FormEvent<HTMLFormElement>, accountId: ManualAccountId) {
     event.preventDefault();
-    const amount = Number(input);
+    const amount = Number(inputs[accountId]);
 
     if (!Number.isSafeInteger(amount) || amount < 0) {
-      setMessage("0円以上の整数で入力してください。");
+      setMessages((current) => ({
+        ...current,
+        [accountId]: "0円以上の整数で入力してください。",
+      }));
       return;
     }
 
-    setSaving(true);
-    setMessage("保存しています。");
+    setSavingAccount(accountId);
+    setMessages((current) => ({ ...current, [accountId]: "保存しています。" }));
 
     try {
-      const response = await fetch("/api/wallet", {
+      const response = await fetch(`/api/balances/${accountId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ amount }),
@@ -80,21 +115,28 @@ export default function BalanceList() {
       }
 
       const data = (await response.json()) as Pick<BalanceResponse, "amount" | "updatedAt">;
+      const account = manualAccounts.find((item) => item.accountId === accountId);
       setBalances((current) => ({
         ...current,
-        wallet: {
-          accountId: "wallet",
-          name: "財布",
+        [accountId]: {
+          accountId,
+          name: account?.name ?? accountId,
           amount: data.amount,
           updatedAt: data.updatedAt,
         },
       }));
-      setInput(String(data.amount));
-      setMessage("保存しました。ほかの端末にも同じ残高が表示されます。");
+      setInputs((current) => ({ ...current, [accountId]: String(data.amount) }));
+      setMessages((current) => ({
+        ...current,
+        [accountId]: "保存しました。ほかの端末にも同じ残高が表示されます。",
+      }));
     } catch {
-      setMessage("保存できませんでした。しばらくしてから再度お試しください。");
+      setMessages((current) => ({
+        ...current,
+        [accountId]: "保存できませんでした。しばらくしてから再度お試しください。",
+      }));
     } finally {
-      setSaving(false);
+      setSavingAccount(null);
     }
   }
 
@@ -105,35 +147,45 @@ export default function BalanceList() {
       </h2>
 
       <dl className="balance-list" aria-label="資産残高">
-        <div className="balance-row wallet-row">
-          <dt>財布</dt>
-          <dd>
-            <form className="wallet-form" onSubmit={saveWallet}>
-              <label className="visually-hidden" htmlFor="wallet-amount">
-                財布の残高
-              </label>
-              <input
-                id="wallet-amount"
-                inputMode="numeric"
-                min="0"
-                name="amount"
-                onChange={(event) => setInput(event.target.value)}
-                step="1"
-                type="number"
-                value={input}
-              />
-              <span>円</span>
-              <button disabled={saving || !balances.wallet} type="submit">
-                {saving ? "保存中" : "保存"}
-              </button>
-            </form>
-          </dd>
-          <p className="wallet-message" aria-live="polite">
-            {message}
-          </p>
-        </div>
+        {manualAccounts.map((account) => (
+          <div className="balance-row editable-balance-row" key={account.accountId}>
+            <dt>{account.name}</dt>
+            <dd>
+              <form
+                className="balance-form"
+                onSubmit={(event) => saveBalance(event, account.accountId)}
+              >
+                <label className="visually-hidden" htmlFor={`${account.accountId}-amount`}>
+                  {account.name}の残高
+                </label>
+                <input
+                  id={`${account.accountId}-amount`}
+                  inputMode="numeric"
+                  min="0"
+                  name="amount"
+                  onChange={(event) =>
+                    setInputs((current) => ({
+                      ...current,
+                      [account.accountId]: event.target.value,
+                    }))
+                  }
+                  step="1"
+                  type="number"
+                  value={inputs[account.accountId]}
+                />
+                <span>円</span>
+                <button disabled={savingAccount !== null || !balances[account.accountId]} type="submit">
+                  {savingAccount === account.accountId ? "保存中" : "保存"}
+                </button>
+              </form>
+            </dd>
+            <p className="balance-message" aria-live="polite">
+              {messages[account.accountId]}
+            </p>
+          </div>
+        ))}
 
-        {otherAccounts.map((account) => (
+        {readonlyAccounts.map((account) => (
           <div className="balance-row" key={account.accountId}>
             <dt>{account.name}</dt>
             <dd>{(balances[account.accountId]?.amount ?? 0).toLocaleString("ja-JP")}円</dd>
