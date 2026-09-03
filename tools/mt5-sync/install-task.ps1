@@ -20,26 +20,20 @@ $action = New-ScheduledTaskAction `
   -Execute $pythonwPath `
   -Argument $arguments `
   -WorkingDirectory $repositoryRoot
-$frequentTrigger = New-ScheduledTaskTrigger `
-  -Once `
-  -At (Get-Date).AddMinutes(1) `
-  -RepetitionInterval (New-TimeSpan -Minutes 5) `
-  -RepetitionDuration (New-TimeSpan -Days 3650)
-$dailyTrigger = New-ScheduledTaskTrigger -Daily -At "03:59"
+$triggers = @("01:00", "03:59", "09:00", "13:00", "17:00", "21:00") |
+  ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ }
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
   -DontStopIfGoingOnBatteries `
-  -StartWhenAvailable `
   -ExecutionTimeLimit (New-TimeSpan -Minutes 2) `
   -MultipleInstances IgnoreNew
 
 Register-ScheduledTask `
   -TaskName $TaskName `
   -Action $action `
-  -Trigger @($frequentTrigger, $dailyTrigger) `
+  -Trigger $triggers `
   -Settings $settings `
-  -Description "Sends the current MT5 USD balance to kakeibo in Japanese yen." `
+  -Description "Sends the MT5 USD balance to kakeibo six times per day." `
   -Force | Out-Null
 
-Start-ScheduledTask -TaskName $TaskName
 Write-Output "Registered: $TaskName"
