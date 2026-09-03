@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.2",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "データの保管先を準備",
+    changes: [
+      "Cloudflareにkakeibo専用のD1データベースを作成しました。",
+      "保存する内容と接続方法は、今後の仕様に合わせて追加します。",
+    ],
+  },
+  {
     version: "v0.1.1",
     date: "2026年9月3日",
     dateTime: "2026-09-03",
