@@ -181,7 +181,7 @@ a {
 
 .app-tabs {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   padding: 4px;
   border: 1px solid rgb(24 57 43 / 24%);
   border-radius: 9px;

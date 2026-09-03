@@ -8,6 +8,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.16",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "収入の登録画面を追加",
+    changes: [
+      "資産、固定費に加えて、収入を管理できるタブを追加しました。",
+      "着金日、摘要、金額を入力し、収入の新規追加と編集ができます。",
+      "登録内容をCloudflareへ保存し、収入の合計額も表示します。",
+    ],
+  },
+  {
     version: "v0.1.15",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

@@ -17,6 +17,31 @@ type Draft = {
   paymentDay: string;
 };
 
+type ManagerKind = "fixed-costs" | "incomes";
+
+type FixedCostManagerProps = {
+  kind?: ManagerKind;
+};
+
+const managerSettings = {
+  "fixed-costs": {
+    apiPath: "/api/fixed-costs",
+    subject: "固定費",
+    dayLabel: "支払日",
+    nameInputLabel: "項目名",
+    emptyMessage: "登録済みの固定費はありません。",
+    totalLabel: "固定費合計",
+  },
+  incomes: {
+    apiPath: "/api/incomes",
+    subject: "収入",
+    dayLabel: "着金日",
+    nameInputLabel: "摘要",
+    emptyMessage: "登録済みの収入はありません。",
+    totalLabel: "収入合計",
+  },
+} as const;
+
 const emptyDraft: Draft = { name: "", amount: "", paymentDay: "" };
 
 function sorted(items: FixedCost[]) {
@@ -43,7 +68,8 @@ function values(draft: Draft) {
   return { name, amount, paymentDay };
 }
 
-export default function FixedCostManager() {
+export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostManagerProps) {
+  const settings = managerSettings[kind];
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -56,10 +82,10 @@ export default function FixedCostManager() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/fixed-costs", { cache: "no-store" })
+    fetch(settings.apiPath, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) {
-          throw new Error("固定費を読み込めませんでした。");
+          throw new Error(`${settings.subject}を読み込めませんでした。`);
         }
         return (await response.json()) as FixedCost[];
       })
@@ -70,7 +96,7 @@ export default function FixedCostManager() {
       })
       .catch(() => {
         if (active) {
-          setMessage("固定費を読み込めませんでした。時間をおいて再度お試しください。");
+          setMessage(`${settings.subject}を読み込めませんでした。時間をおいて再度お試しください。`);
         }
       })
       .finally(() => {
@@ -82,20 +108,22 @@ export default function FixedCostManager() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [settings]);
 
   async function addFixedCost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const body = values(newDraft);
     if (!body) {
-      setMessage("項目名、0円以上の金額、1～31日の支払日を入力してください。");
+      setMessage(
+        `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`,
+      );
       return;
     }
 
     setSaving(true);
     setMessage("");
     try {
-      const response = await fetch("/api/fixed-costs", {
+      const response = await fetch(settings.apiPath, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -107,9 +135,9 @@ export default function FixedCostManager() {
       const saved = (await response.json()) as FixedCost;
       setFixedCosts((current) => sorted([...current, saved]));
       setNewDraft(emptyDraft);
-      setMessage("固定費を追加しました。");
+      setMessage(`${settings.subject}を追加しました。`);
     } catch {
-      setMessage("固定費を保存できませんでした。時間をおいて再度お試しください。");
+      setMessage(`${settings.subject}を保存できませんでした。時間をおいて再度お試しください。`);
     } finally {
       setSaving(false);
     }
@@ -133,14 +161,16 @@ export default function FixedCostManager() {
 
     const body = values(editDraft);
     if (!body) {
-      setMessage("項目名、0円以上の金額、1～31日の支払日を入力してください。");
+      setMessage(
+        `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`,
+      );
       return;
     }
 
     setSaving(true);
     setMessage("");
     try {
-      const response = await fetch(`/api/fixed-costs/${editingId}`, {
+      const response = await fetch(`${settings.apiPath}/${editingId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -154,21 +184,25 @@ export default function FixedCostManager() {
         sorted(current.map((item) => (item.id === saved.id ? saved : item))),
       );
       setEditingId(null);
-      setMessage("固定費を更新しました。");
+      setMessage(`${settings.subject}を更新しました。`);
     } catch {
-      setMessage("固定費を保存できませんでした。時間をおいて再度お試しください。");
+      setMessage(`${settings.subject}を保存できませんでした。時間をおいて再度お試しください。`);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <section className="fixed-cost-section" aria-labelledby="fixed-cost-heading">
-      <h1 className="visually-hidden" id="fixed-cost-heading">固定費</h1>
+    <section className="fixed-cost-section" aria-labelledby={`${kind}-heading`}>
+      <h1 className="visually-hidden" id={`${kind}-heading`}>{settings.subject}</h1>
 
-      <form aria-label="固定費の新規追加" className="fixed-cost-form" onSubmit={addFixedCost}>
+      <form
+        aria-label={`${settings.subject}の新規追加`}
+        className="fixed-cost-form"
+        onSubmit={addFixedCost}
+      >
         <input
-          aria-label="支払日"
+          aria-label={settings.dayLabel}
           inputMode="numeric"
           max="31"
           min="1"
@@ -178,19 +212,19 @@ export default function FixedCostManager() {
               paymentDay: event.target.value,
             }))
           }
-          placeholder="支払日"
+          placeholder={settings.dayLabel}
           required
           step="1"
           type="number"
           value={newDraft.paymentDay}
         />
         <input
-          aria-label="項目名"
+          aria-label={settings.nameInputLabel}
           maxLength={80}
           onChange={(event) =>
             setNewDraft((current) => ({ ...current, name: event.target.value }))
           }
-          placeholder="項目名"
+          placeholder={settings.nameInputLabel}
           required
           type="text"
           value={newDraft.name}
@@ -214,7 +248,7 @@ export default function FixedCostManager() {
       </form>
 
       <div className="fixed-cost-column-headings">
-        <span>支払日</span>
+        <span>{settings.dayLabel}</span>
         <span>摘要</span>
         <span>金額</span>
         <span aria-hidden="true" />
@@ -225,7 +259,7 @@ export default function FixedCostManager() {
       {loading ? (
         <p className="fixed-cost-empty">読み込み中…</p>
       ) : fixedCosts.length === 0 ? (
-        <p className="fixed-cost-empty">登録済みの固定費はありません。</p>
+        <p className="fixed-cost-empty">{settings.emptyMessage}</p>
       ) : (
         <ul className="fixed-cost-list">
           {fixedCosts.map((item) => (
@@ -233,7 +267,7 @@ export default function FixedCostManager() {
               {editingId === item.id ? (
                 <form className="fixed-cost-edit-form" onSubmit={saveEdit}>
                   <label>
-                    支払日
+                    {settings.dayLabel}
                     <input
                       inputMode="numeric"
                       max="31"
@@ -251,7 +285,7 @@ export default function FixedCostManager() {
                     />
                   </label>
                   <label>
-                    項目名
+                    {settings.nameInputLabel}
                     <input
                       maxLength={80}
                       onChange={(event) =>
@@ -311,7 +345,7 @@ export default function FixedCostManager() {
       )}
 
       <div className="fixed-cost-total">
-        <span>固定費合計</span>
+        <span>{settings.totalLabel}</span>
         <strong>{totalAmount.toLocaleString("ja-JP")}円</strong>
       </div>
     </section>

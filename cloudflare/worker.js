@@ -252,6 +252,73 @@ async function updateFixedCost(request, env, id) {
   return json(saved);
 }
 
+async function listIncomes(env) {
+  const result = await env.DB.prepare(
+    `SELECT id, name, amount, payment_day AS paymentDay,
+            created_at AS createdAt, updated_at AS updatedAt
+     FROM incomes
+     ORDER BY payment_day, id`,
+  ).all();
+
+  return result.results;
+}
+
+async function createIncome(request, env) {
+  const income = readFixedCost(await request.json().catch(() => null));
+  if (!income) {
+    return json({ error: "収入の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `INSERT INTO incomes (name, amount, payment_day, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(income.name, income.amount, income.paymentDay, now, now)
+    .run();
+
+  return json(
+    {
+      id: result.meta.last_row_id,
+      ...income,
+      createdAt: now,
+      updatedAt: now,
+    },
+    201,
+  );
+}
+
+async function updateIncome(request, env, id) {
+  const income = readFixedCost(await request.json().catch(() => null));
+  if (!income) {
+    return json({ error: "収入の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `UPDATE incomes
+     SET name = ?, amount = ?, payment_day = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(income.name, income.amount, income.paymentDay, now, id)
+    .run();
+
+  if (result.meta.changes !== 1) {
+    return json({ error: "収入が見つかりません。" }, 404);
+  }
+
+  const saved = await env.DB.prepare(
+    `SELECT id, name, amount, payment_day AS paymentDay,
+            created_at AS createdAt, updated_at AS updatedAt
+     FROM incomes
+     WHERE id = ?`,
+  )
+    .bind(id)
+    .first();
+
+  return json(saved);
+}
+
 function previousDateInJapan(scheduledTime) {
   const japanTime = new Date(scheduledTime + 9 * 60 * 60 * 1000);
   japanTime.setUTCDate(japanTime.getUTCDate() - 1);
@@ -319,6 +386,23 @@ const worker = {
         return json({ error: "固定費が見つかりません。" }, 404);
       }
       return updateFixedCost(request, env, id);
+    }
+
+    if (url.pathname === "/incomes" && request.method === "GET") {
+      return json(await listIncomes(env));
+    }
+
+    if (url.pathname === "/incomes" && request.method === "POST") {
+      return createIncome(request, env);
+    }
+
+    const incomePath = url.pathname.match(/^\/incomes\/(\d+)$/);
+    if (incomePath && request.method === "PUT") {
+      const id = Number(incomePath[1]);
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return json({ error: "収入が見つかりません。" }, 404);
+      }
+      return updateIncome(request, env, id);
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {

@@ -7,11 +7,11 @@ import LogoutButton from "../components/logout-button";
 import { isAuthenticated } from "../lib/auth";
 
 export const metadata: Metadata = {
-  title: "固定費 | kakeibo",
-  description: "毎月の固定費を登録・編集します。",
+  title: "収入 | kakeibo",
+  description: "毎月の収入を登録・編集します。",
 };
 
-export default async function FixedCostsPage() {
+export default async function IncomesPage() {
   const cookieStore = await cookies();
 
   if (!isAuthenticated(cookieStore.get("kakeibo_session")?.value)) {
@@ -28,11 +28,11 @@ export default async function FixedCostsPage() {
 
         <nav className="app-tabs" aria-label="家計簿の表示切り替え">
           <Link href="/">資産</Link>
-          <span aria-current="page">固定費</span>
-          <Link href="/incomes">収入</Link>
+          <Link href="/fixed-costs">固定費</Link>
+          <span aria-current="page">収入</span>
         </nav>
 
-        <FixedCostManager />
+        <FixedCostManager kind="incomes" />
 
         <div className="home-links">
           <Link className="updates-link" href="/updates">
