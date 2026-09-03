@@ -1,9 +1,8 @@
-<!-- BEGIN:nextjs-agent-rules -->
-
-# This is NOT the Next.js you know
-
-This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
-
-This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
-
-<!-- END:nextjs-agent-rules -->
+チャットのやり取りは自然言語のみの日本語でお願いします（コード内の横文字や、独自用語や専門用語を極力使わないでください）
+チャットのやり取りは先に結論を答えて、その後で必要な説明をしてください
+全ての実装が完了して最終報告を送る直前に、PowerShellで [console]::Beep(1200,250) を1回実行して音を鳴らしてください
+毎回の実装後は、実装内容に相応しいコメントを考えて「git add . && git commit -m "◯◯" && git push」の形で、最後の1行として提案してください
+毎回の実装後は、実装内容に伴ってdocsフォルダ内のドキュメントの内容も更新してください（必要な場合）
+Webアプリを更新した場合は、必ず更新情報ページにも変更内容を追記してください
+何らかの実装を行うたびに、このアプリのバージョン表記を0.001ずつ加算してください
+毎回の実装後は、提案だけで終わらせず、自分自身でコミットとpushまで実行してください
