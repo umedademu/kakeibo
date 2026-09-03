@@ -53,42 +53,50 @@ export default function BalanceList() {
   useEffect(() => {
     let active = true;
 
-    fetch("/api/balances", { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) {
-          throw new Error("残高を読み込めませんでした。");
-        }
+    function loadBalances(initializeForms: boolean) {
+      fetch("/api/balances", { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) {
+            throw new Error("残高を読み込めませんでした。");
+          }
 
-        return (await response.json()) as BalanceResponse[];
-      })
-      .then((items) => {
-        if (!active) return;
-        const nextBalances = Object.fromEntries(items.map((item) => [item.accountId, item]));
-        setBalances(nextBalances);
-        setInputs({
-          wallet: String(nextBalances.wallet?.amount ?? 0),
-          paypay: String(nextBalances.paypay?.amount ?? 0),
-          paypay_bank: String(nextBalances.paypay_bank?.amount ?? 0),
-        });
-        setMessages({
-          wallet: updatedMessage(nextBalances.wallet),
-          paypay: updatedMessage(nextBalances.paypay),
-          paypay_bank: updatedMessage(nextBalances.paypay_bank),
-        });
-      })
-      .catch(() => {
-        if (active) {
-          const errorMessage = "残高を読み込めませんでした。しばらくしてから再度お試しください。";
-          setMessages({
-            wallet: errorMessage,
-            paypay: errorMessage,
-            paypay_bank: errorMessage,
+          return (await response.json()) as BalanceResponse[];
+        })
+        .then((items) => {
+          if (!active) return;
+          const nextBalances = Object.fromEntries(items.map((item) => [item.accountId, item]));
+          setBalances(nextBalances);
+
+          if (!initializeForms) return;
+          setInputs({
+            wallet: String(nextBalances.wallet?.amount ?? 0),
+            paypay: String(nextBalances.paypay?.amount ?? 0),
+            paypay_bank: String(nextBalances.paypay_bank?.amount ?? 0),
           });
-        }
-      });
+          setMessages({
+            wallet: updatedMessage(nextBalances.wallet),
+            paypay: updatedMessage(nextBalances.paypay),
+            paypay_bank: updatedMessage(nextBalances.paypay_bank),
+          });
+        })
+        .catch(() => {
+          if (active && initializeForms) {
+            const errorMessage = "残高を読み込めませんでした。しばらくしてから再度お試しください。";
+            setMessages({
+              wallet: errorMessage,
+              paypay: errorMessage,
+              paypay_bank: errorMessage,
+            });
+          }
+        });
+    }
+
+    loadBalances(true);
+    const intervalId = window.setInterval(() => loadBalances(false), 60 * 1000);
 
     return () => {
       active = false;
+      window.clearInterval(intervalId);
     };
   }, []);
 

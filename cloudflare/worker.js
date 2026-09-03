@@ -99,6 +99,72 @@ async function syncSavedBallBalance(env, recordedAt) {
   return { amount, sourceUpdatedAt: data.sourceUpdatedAt ?? null, updatedAt: recordedAt };
 }
 
+async function syncFxBalance(request, env) {
+  const body = await request.json().catch(() => null);
+  const balanceUsd = body?.balanceUsd;
+  const usdJpyRate = body?.usdJpyRate;
+  const rateSymbol = body?.rateSymbol;
+  const sourceRecordedAt = body?.sourceRecordedAt;
+  const rateRecordedAt = body?.rateRecordedAt;
+
+  if (
+    !Number.isFinite(balanceUsd) ||
+    balanceUsd < 0 ||
+    !Number.isFinite(usdJpyRate) ||
+    usdJpyRate <= 0 ||
+    typeof rateSymbol !== "string" ||
+    rateSymbol.length < 1 ||
+    rateSymbol.length > 40 ||
+    typeof sourceRecordedAt !== "string" ||
+    Number.isNaN(Date.parse(sourceRecordedAt)) ||
+    typeof rateRecordedAt !== "string" ||
+    Number.isNaN(Date.parse(rateRecordedAt))
+  ) {
+    return json({ error: "FX口座の情報が正しくありません。" }, 400);
+  }
+
+  const amount = Math.round(balanceUsd * usdJpyRate);
+  if (!Number.isSafeInteger(amount) || amount < 0) {
+    return json({ error: "円換算後の残高が正しくありません。" }, 400);
+  }
+
+  const receivedAt = new Date().toISOString();
+  const current = await env.DB.prepare(
+    "SELECT amount FROM current_balances WHERE account_id = ?",
+  )
+    .bind("fx")
+    .first();
+  const statements = [
+    env.DB.prepare(
+      "UPDATE current_balances SET amount = ?, updated_at = ? WHERE account_id = ?",
+    ).bind(amount, receivedAt, "fx"),
+    env.DB.prepare(
+      `INSERT INTO fx_sync_records
+       (balance_usd, usd_jpy_rate, balance_jpy, rate_symbol, source_recorded_at, rate_recorded_at, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).bind(
+      balanceUsd,
+      usdJpyRate,
+      amount,
+      rateSymbol,
+      sourceRecordedAt,
+      rateRecordedAt,
+      receivedAt,
+    ),
+  ];
+
+  if (current?.amount !== amount) {
+    statements.push(
+      env.DB.prepare(
+        "INSERT INTO balance_events (account_id, amount, recorded_at) VALUES (?, ?, ?)",
+      ).bind("fx", amount, receivedAt),
+    );
+  }
+
+  await env.DB.batch(statements);
+  return json({ amount, updatedAt: receivedAt });
+}
+
 function previousDateInJapan(scheduledTime) {
   const japanTime = new Date(scheduledTime + 9 * 60 * 60 * 1000);
   japanTime.setUTCDate(japanTime.getUTCDate() - 1);
@@ -145,6 +211,10 @@ const worker = {
         console.error(error);
         return json({ error: "貯玉残高を更新できませんでした。" }, 502);
       }
+    }
+
+    if (url.pathname === "/sync/fx" && request.method === "POST") {
+      return syncFxBalance(request, env);
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {

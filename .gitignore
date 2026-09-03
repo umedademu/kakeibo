@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/.venv-mt5/
 
 # Next.js
 /.next/
