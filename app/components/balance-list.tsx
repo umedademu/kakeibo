@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { KeyboardEvent, useEffect, useState } from "react";
 
 type ManualAccountId = "wallet" | "paypay" | "paypay_bank";
 
@@ -44,6 +44,7 @@ export default function BalanceList() {
   const [balances, setBalances] = useState<Record<string, BalanceResponse>>({});
   const [inputs, setInputs] = useState(initialInputs);
   const [messages, setMessages] = useState(initialMessages);
+  const [editingAccount, setEditingAccount] = useState<ManualAccountId | null>(null);
   const [savingAccount, setSavingAccount] = useState<ManualAccountId | null>(null);
   const totalAssets = [...manualAccounts, ...readonlyAccounts].reduce(
     (total, account) => total + (balances[account.accountId]?.amount ?? 0),
@@ -100,14 +101,43 @@ export default function BalanceList() {
     };
   }, []);
 
-  async function saveBalance(event: FormEvent<HTMLFormElement>, accountId: ManualAccountId) {
-    event.preventDefault();
+  function startEditing(accountId: ManualAccountId) {
+    const balance = balances[accountId];
+    if (!balance || savingAccount) return;
+
+    setInputs((current) => ({ ...current, [accountId]: String(balance.amount) }));
+    setEditingAccount(accountId);
+    setMessages((current) => ({ ...current, [accountId]: updatedMessage(balance) }));
+  }
+
+  function handleEditorKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.currentTarget.blur();
+    }
+  }
+
+  async function saveBalance(accountId: ManualAccountId) {
     const amount = Number(inputs[accountId]);
 
     if (!Number.isSafeInteger(amount) || amount < 0) {
+      setInputs((current) => ({
+        ...current,
+        [accountId]: String(balances[accountId]?.amount ?? 0),
+      }));
+      setEditingAccount(null);
       setMessages((current) => ({
         ...current,
         [accountId]: "0円以上の整数で入力してください。",
+      }));
+      return;
+    }
+
+    if (amount === balances[accountId]?.amount) {
+      setEditingAccount(null);
+      setMessages((current) => ({
+        ...current,
+        [accountId]: updatedMessage(balances[accountId]),
       }));
       return;
     }
@@ -142,6 +172,7 @@ export default function BalanceList() {
         ...current,
         [accountId]: "保存しました。ほかの端末にも同じ残高が表示されます。",
       }));
+      setEditingAccount(null);
     } catch {
       setMessages((current) => ({
         ...current,
@@ -168,44 +199,69 @@ export default function BalanceList() {
           <div className="balance-row editable-balance-row" key={account.accountId}>
             <dt>{account.name}</dt>
             <dd>
-              <form
-                className="balance-form"
-                onSubmit={(event) => saveBalance(event, account.accountId)}
-              >
-                <label className="visually-hidden" htmlFor={`${account.accountId}-amount`}>
-                  {account.name}の残高
-                </label>
-                <input
-                  id={`${account.accountId}-amount`}
-                  inputMode="numeric"
-                  min="0"
-                  name="amount"
-                  onChange={(event) =>
-                    setInputs((current) => ({
-                      ...current,
-                      [account.accountId]: event.target.value,
-                    }))
-                  }
-                  step="1"
-                  type="number"
-                  value={inputs[account.accountId]}
-                />
-                <span>円</span>
-                <button disabled={savingAccount !== null || !balances[account.accountId]} type="submit">
-                  {savingAccount === account.accountId ? "保存中" : "保存"}
+              {editingAccount === account.accountId ? (
+                <div className="balance-editor">
+                  <label className="visually-hidden" htmlFor={`${account.accountId}-amount`}>
+                    {account.name}の残高
+                  </label>
+                  <input
+                    aria-describedby={`${account.accountId}-message`}
+                    autoFocus
+                    disabled={savingAccount === account.accountId}
+                    id={`${account.accountId}-amount`}
+                    inputMode="numeric"
+                    min="0"
+                    name="amount"
+                    onBlur={() => void saveBalance(account.accountId)}
+                    onChange={(event) => {
+                      setInputs((current) => ({
+                        ...current,
+                        [account.accountId]: event.target.value,
+                      }));
+                      setMessages((current) => ({
+                        ...current,
+                        [account.accountId]: "入力を終えると自動保存します。",
+                      }));
+                    }}
+                    onFocus={(event) => event.currentTarget.select()}
+                    onKeyDown={handleEditorKeyDown}
+                    step="1"
+                    type="number"
+                    value={inputs[account.accountId]}
+                  />
+                  <span>円</span>
+                </div>
+              ) : (
+                <button
+                  aria-label={`${account.name}の残高を編集`}
+                  className="balance-value-button"
+                  disabled={!balances[account.accountId] || savingAccount !== null}
+                  onClick={() => startEditing(account.accountId)}
+                  type="button"
+                >
+                  {(balances[account.accountId]?.amount ?? 0).toLocaleString("ja-JP")}円
                 </button>
-              </form>
+              )}
             </dd>
-            <p className="balance-message" aria-live="polite">
+            <p
+              className="balance-message"
+              id={`${account.accountId}-message`}
+              aria-live="polite"
+            >
               {messages[account.accountId]}
             </p>
           </div>
         ))}
 
         {readonlyAccounts.map((account) => (
-          <div className="balance-row" key={account.accountId}>
+          <div className="balance-row readonly-balance-row" key={account.accountId}>
             <dt>{account.name}</dt>
             <dd>{(balances[account.accountId]?.amount ?? 0).toLocaleString("ja-JP")}円</dd>
+            <p className="balance-message">
+              {balances[account.accountId]
+                ? updatedMessage(balances[account.accountId])
+                : "残高を読み込んでいます。"}
+            </p>
           </div>
         ))}
       </dl>

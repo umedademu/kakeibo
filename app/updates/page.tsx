@@ -8,6 +8,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.9",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "残高入力画面を簡潔に変更",
+    changes: [
+      "財布、PayPay、PayPay銀行は、普段は金額だけを表示するようにしました。",
+      "金額を押すと入力欄へ切り替わり、入力後は保存ボタンなしで自動保存します。",
+      "貯玉とFX口座にも最終更新時刻を表示するようにしました。",
+    ],
+  },
+  {
     version: "v0.1.8",
     date: "2026年9月3日",
     dateTime: "2026-09-03",
