@@ -32,8 +32,9 @@ a {
 
 .home-content {
   display: flex;
+  width: min(100%, 520px);
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   gap: 32px;
 }
 
@@ -43,6 +44,38 @@ a {
   font-weight: 600;
   letter-spacing: 0.08em;
   line-height: 1;
+  text-align: center;
+}
+
+.balance-list {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid rgb(24 57 43 / 24%);
+}
+
+.balance-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 18px 4px;
+  border-bottom: 1px solid rgb(24 57 43 / 24%);
+}
+
+.balance-row dt,
+.balance-row dd {
+  margin: 0;
+}
+
+.balance-row dt {
+  font-size: 1rem;
+}
+
+.balance-row dd {
+  font-size: 1.1rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
 }
 
 .updates-link,
@@ -55,6 +88,10 @@ a {
   letter-spacing: 0.04em;
   text-decoration: none;
   text-underline-offset: 5px;
+}
+
+.updates-link {
+  align-self: center;
 }
 
 .updates-link:hover,

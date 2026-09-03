@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.1",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "5つの残高を表示",
+    changes: [
+      "トップページに財布、PayPay、PayPay銀行、貯玉、FX口座の残高を追加しました。",
+      "初期残高はすべて0円に設定しています。",
+    ],
+  },
+  {
     version: "v0.1.0",
     date: "2026年9月3日",
     dateTime: "2026-09-03",
