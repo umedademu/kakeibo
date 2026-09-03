@@ -45,6 +45,10 @@ export default function BalanceList() {
   const [inputs, setInputs] = useState(initialInputs);
   const [messages, setMessages] = useState(initialMessages);
   const [savingAccount, setSavingAccount] = useState<ManualAccountId | null>(null);
+  const totalAssets = [...manualAccounts, ...readonlyAccounts].reduce(
+    (total, account) => total + (balances[account.accountId]?.amount ?? 0),
+    0,
+  );
 
   useEffect(() => {
     let active = true;
@@ -147,6 +151,11 @@ export default function BalanceList() {
       </h2>
 
       <dl className="balance-list" aria-label="資産残高">
+        <div className="balance-row total-balance-row">
+          <dt>総資産</dt>
+          <dd>{totalAssets.toLocaleString("ja-JP")}円</dd>
+        </div>
+
         {manualAccounts.map((account) => (
           <div className="balance-row editable-balance-row" key={account.accountId}>
             <dt>{account.name}</dt>

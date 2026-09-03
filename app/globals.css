@@ -75,6 +75,15 @@ a {
   border-bottom: 1px solid rgb(24 57 43 / 24%);
 }
 
+.total-balance-row {
+  border-bottom-width: 2px;
+}
+
+.total-balance-row dt,
+.total-balance-row dd {
+  font-size: 1.25rem;
+}
+
 .editable-balance-row {
   display: grid;
   grid-template-columns: auto 1fr;

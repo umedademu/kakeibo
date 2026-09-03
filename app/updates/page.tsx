@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.6",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "総資産の表示を追加",
+    changes: [
+      "財布、PayPay、PayPay銀行、貯玉、FX口座の合計を、総資産として表示するようにしました。",
+      "各残高を変更すると、総資産にもすぐに反映されます。",
+    ],
+  },
+  {
     version: "v0.1.5",
     date: "2026年9月3日",
     dateTime: "2026-09-03",
