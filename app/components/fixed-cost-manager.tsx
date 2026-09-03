@@ -213,9 +213,11 @@ export default function FixedCostManager() {
         </button>
       </form>
 
-      <div className="fixed-cost-list-heading">
-        <h2>登録済み</h2>
-        <span>{fixedCosts.length}件</span>
+      <div className="fixed-cost-column-headings">
+        <span>支払日</span>
+        <span>摘要</span>
+        <span>金額</span>
+        <span aria-hidden="true" />
       </div>
 
       {message ? <p className="fixed-cost-message" role="status">{message}</p> : null}
@@ -290,7 +292,7 @@ export default function FixedCostManager() {
                 </form>
               ) : (
                 <div className="fixed-cost-row">
-                  <p>毎月{item.paymentDay}日</p>
+                  <p>{item.paymentDay}日</p>
                   <h3>{item.name}</h3>
                   <strong>{item.amount.toLocaleString("ja-JP")}円</strong>
                   <button
