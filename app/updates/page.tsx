@@ -8,6 +8,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.11",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "固定費の登録画面を追加",
+    changes: [
+      "資産画面とは別に、固定費を管理できる画面を追加しました。",
+      "項目名、金額、毎月の支払日を入力して、新しい固定費を登録できます。",
+      "登録済みの固定費を編集し、変更内容をCloudflareへ保存できます。",
+    ],
+  },
+  {
     version: "v0.1.10",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

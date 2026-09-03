@@ -165,6 +165,93 @@ async function syncFxEquity(request, env) {
   return json({ amount, updatedAt: receivedAt });
 }
 
+function readFixedCost(body) {
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  const amount = body?.amount;
+  const paymentDay = body?.paymentDay;
+
+  if (
+    name.length < 1 ||
+    name.length > 80 ||
+    !Number.isSafeInteger(amount) ||
+    amount < 0 ||
+    !Number.isInteger(paymentDay) ||
+    paymentDay < 1 ||
+    paymentDay > 31
+  ) {
+    return null;
+  }
+
+  return { name, amount, paymentDay };
+}
+
+async function listFixedCosts(env) {
+  const result = await env.DB.prepare(
+    `SELECT id, name, amount, payment_day AS paymentDay,
+            created_at AS createdAt, updated_at AS updatedAt
+     FROM fixed_costs
+     ORDER BY payment_day, id`,
+  ).all();
+
+  return result.results;
+}
+
+async function createFixedCost(request, env) {
+  const fixedCost = readFixedCost(await request.json().catch(() => null));
+  if (!fixedCost) {
+    return json({ error: "固定費の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `INSERT INTO fixed_costs (name, amount, payment_day, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?)`,
+  )
+    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, now, now)
+    .run();
+
+  return json(
+    {
+      id: result.meta.last_row_id,
+      ...fixedCost,
+      createdAt: now,
+      updatedAt: now,
+    },
+    201,
+  );
+}
+
+async function updateFixedCost(request, env, id) {
+  const fixedCost = readFixedCost(await request.json().catch(() => null));
+  if (!fixedCost) {
+    return json({ error: "固定費の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `UPDATE fixed_costs
+     SET name = ?, amount = ?, payment_day = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, now, id)
+    .run();
+
+  if (result.meta.changes !== 1) {
+    return json({ error: "固定費が見つかりません。" }, 404);
+  }
+
+  const saved = await env.DB.prepare(
+    `SELECT id, name, amount, payment_day AS paymentDay,
+            created_at AS createdAt, updated_at AS updatedAt
+     FROM fixed_costs
+     WHERE id = ?`,
+  )
+    .bind(id)
+    .first();
+
+  return json(saved);
+}
+
 function previousDateInJapan(scheduledTime) {
   const japanTime = new Date(scheduledTime + 9 * 60 * 60 * 1000);
   japanTime.setUTCDate(japanTime.getUTCDate() - 1);
@@ -215,6 +302,23 @@ const worker = {
 
     if (url.pathname === "/sync/fx" && request.method === "POST") {
       return syncFxEquity(request, env);
+    }
+
+    if (url.pathname === "/fixed-costs" && request.method === "GET") {
+      return json(await listFixedCosts(env));
+    }
+
+    if (url.pathname === "/fixed-costs" && request.method === "POST") {
+      return createFixedCost(request, env);
+    }
+
+    const fixedCostPath = url.pathname.match(/^\/fixed-costs\/(\d+)$/);
+    if (fixedCostPath && request.method === "PUT") {
+      const id = Number(fixedCostPath[1]);
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return json({ error: "固定費が見つかりません。" }, 404);
+      }
+      return updateFixedCost(request, env, id);
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {

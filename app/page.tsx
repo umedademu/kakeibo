@@ -20,6 +20,11 @@ export default async function Home() {
           <LogoutButton />
         </header>
 
+        <nav className="app-tabs" aria-label="家計簿の表示切り替え">
+          <span aria-current="page">資産</span>
+          <Link href="/fixed-costs">固定費</Link>
+        </nav>
+
         <BalanceList />
 
         <div className="home-links">
