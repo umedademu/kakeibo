@@ -1,32 +1,33 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import BalanceList from "./components/balance-list";
+import LogoutButton from "./components/logout-button";
+import { isAuthenticated } from "./lib/auth";
 
-const balances = [
-  { name: "財布", amount: 0 },
-  { name: "PayPay", amount: 0 },
-  { name: "PayPay銀行", amount: 0 },
-  { name: "貯玉", amount: 0 },
-  { name: "FX口座", amount: 0 },
-];
+export default async function Home() {
+  const cookieStore = await cookies();
 
-export default function Home() {
+  if (!isAuthenticated(cookieStore.get("kakeibo_session")?.value)) {
+    redirect("/login");
+  }
+
   return (
     <main className="home-main">
       <div className="home-content">
-        <h1 className="brand-title">kakeibo</h1>
+        <header className="home-header">
+          <h1 className="brand-title">kakeibo</h1>
+          <LogoutButton />
+        </header>
 
-        <dl className="balance-list" aria-label="資産残高">
-          {balances.map((balance) => (
-            <div className="balance-row" key={balance.name}>
-              <dt>{balance.name}</dt>
-              <dd>{balance.amount.toLocaleString("ja-JP")}円</dd>
-            </div>
-          ))}
-        </dl>
+        <BalanceList />
 
-        <Link className="updates-link" href="/updates">
-          更新情報
-          <span aria-hidden="true">→</span>
-        </Link>
+        <div className="home-links">
+          <Link className="updates-link" href="/updates">
+            更新情報
+            <span aria-hidden="true">→</span>
+          </Link>
+        </div>
       </div>
     </main>
   );

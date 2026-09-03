@@ -1,0 +1,12 @@
+name = "kakeibo-data-api"
+main = "cloudflare/worker.js"
+compatibility_date = "2026-09-03"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kakeibo-db"
+database_id = "3fdaf861-1215-4825-92f0-c117408190b5"
+migrations_dir = "cloudflare/migrations"
+
+[triggers]
+crons = ["0 19 * * *"]

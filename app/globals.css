@@ -38,6 +38,10 @@ a {
   gap: 32px;
 }
 
+.home-header {
+  position: relative;
+}
+
 .brand-title {
   margin: 0;
   font-size: clamp(2.75rem, 10vw, 5rem);
@@ -54,6 +58,14 @@ a {
   border-top: 1px solid rgb(24 57 43 / 24%);
 }
 
+.section-title {
+  margin: 0 0 12px;
+  color: rgb(24 57 43 / 72%);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
 .balance-row {
   display: flex;
   align-items: baseline;
@@ -61,6 +73,159 @@ a {
   gap: 24px;
   padding: 18px 4px;
   border-bottom: 1px solid rgb(24 57 43 / 24%);
+}
+
+.wallet-row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+}
+
+.wallet-row dd {
+  justify-self: end;
+}
+
+.wallet-form {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.wallet-form input {
+  width: min(35vw, 150px);
+  border: 1px solid rgb(24 57 43 / 32%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 55%);
+  color: var(--foreground);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  padding: 8px 9px;
+  text-align: right;
+}
+
+.wallet-form button,
+.login-form button,
+.logout-button {
+  border: 1px solid var(--foreground);
+  border-radius: 7px;
+  background: var(--foreground);
+  color: var(--background);
+  cursor: pointer;
+  font: inherit;
+  font-weight: 600;
+}
+
+.wallet-form button {
+  padding: 8px 11px;
+}
+
+.wallet-form button:disabled,
+.login-form button:disabled,
+.logout-button:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.wallet-message {
+  grid-column: 1 / -1;
+  margin: 5px 0 0;
+  color: rgb(24 57 43 / 65%);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  text-align: right;
+}
+
+.cutoff-note {
+  margin: 14px 0 0;
+  color: rgb(24 57 43 / 65%);
+  font-size: 0.78rem;
+  line-height: 1.7;
+}
+
+.home-links {
+  display: flex;
+  justify-content: center;
+}
+
+.logout-button {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  padding: 7px 9px;
+  background: transparent;
+  color: var(--foreground);
+  font-size: 0.72rem;
+  transform: translateY(-50%);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.login-main {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+}
+
+.login-panel {
+  width: min(100%, 390px);
+}
+
+.login-panel h1 {
+  margin: 0;
+  font-size: clamp(2.75rem, 10vw, 4.5rem);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  line-height: 1;
+  text-align: center;
+}
+
+.login-panel > p {
+  margin: 28px 0;
+  color: rgb(24 57 43 / 72%);
+  font-size: 0.9rem;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.login-form {
+  display: grid;
+  gap: 10px;
+}
+
+.login-form label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.login-form input {
+  width: 100%;
+  border: 1px solid rgb(24 57 43 / 32%);
+  border-radius: 7px;
+  background: rgb(255 255 255 / 55%);
+  color: var(--foreground);
+  font: inherit;
+  padding: 12px;
+}
+
+.login-form button {
+  margin-top: 4px;
+  padding: 12px;
+}
+
+.login-error {
+  margin: 5px 0 0;
+  color: #a12622;
+  font-size: 0.8rem;
+  line-height: 1.6;
 }
 
 .balance-row dt,
