@@ -31,8 +31,15 @@ a {
 }
 
 .home-content {
+  display: grid;
+  width: min(100%, 1280px);
+  grid-template-columns: minmax(340px, 2fr) minmax(0, 3fr);
+  align-items: start;
+  gap: clamp(32px, 5vw, 72px);
+}
+
+.home-summary {
   display: flex;
-  width: min(100%, 520px);
   flex-direction: column;
   align-items: stretch;
   gap: 32px;
@@ -177,6 +184,88 @@ a {
 .home-links {
   display: flex;
   justify-content: center;
+}
+
+.asset-history-panel {
+  min-width: 0;
+  border: 1px solid rgb(24 57 43 / 24%);
+  border-radius: 16px;
+  background: rgb(255 255 255 / 42%);
+  padding: clamp(20px, 3vw, 32px);
+}
+
+.asset-history-header h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 2vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.asset-history-header p {
+  margin: 8px 0 0;
+  color: rgb(24 57 43 / 65%);
+  font-size: 0.8rem;
+}
+
+.asset-history-state {
+  display: grid;
+  min-height: 390px;
+  margin: 0;
+  place-items: center;
+  color: rgb(24 57 43 / 62%);
+  font-size: 0.9rem;
+  line-height: 1.8;
+  text-align: center;
+}
+
+.asset-history-error {
+  color: #a12622;
+}
+
+.asset-history-chart {
+  width: 100%;
+  margin-top: 18px;
+}
+
+.asset-history-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.chart-grid-line {
+  stroke: rgb(24 57 43 / 13%);
+  stroke-width: 1;
+}
+
+.chart-axis-label,
+.chart-date-label {
+  fill: rgb(24 57 43 / 60%);
+  font-family: inherit;
+  font-size: 12px;
+}
+
+.chart-axis-label {
+  text-anchor: end;
+}
+
+.chart-date-label {
+  text-anchor: middle;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3;
+}
+
+.chart-point {
+  fill: var(--background);
+  stroke: var(--foreground);
+  stroke-width: 3;
 }
 
 .app-tabs {
@@ -642,5 +731,16 @@ a {
   .fixed-cost-column-headings {
     grid-template-columns: 55px minmax(0, 1fr) 84px 50px;
     gap: 8px;
+  }
+}
+
+@media (max-width: 900px) {
+  .home-content {
+    width: min(100%, 720px);
+    grid-template-columns: 1fr;
+  }
+
+  .asset-history-state {
+    min-height: 280px;
   }
 }

@@ -340,6 +340,28 @@ async function saveDailySnapshot(env, scheduledTime) {
     .run();
 }
 
+function dateInJapanDaysAgo(daysAgo) {
+  const japanTime = new Date(Date.now() + 9 * 60 * 60 * 1000);
+  japanTime.setUTCDate(japanTime.getUTCDate() - daysAgo);
+  return japanTime.toISOString().slice(0, 10);
+}
+
+async function listAssetHistory(env, days) {
+  const firstDate = dateInJapanDaysAgo(days - 1);
+  const result = await env.DB.prepare(
+    `SELECT balance_date AS date, SUM(amount) AS total
+     FROM daily_balance_snapshots
+     WHERE balance_date >= ?
+       AND account_id IN ('wallet', 'paypay', 'paypay_bank', 'pachinko', 'fx')
+     GROUP BY balance_date
+     ORDER BY balance_date`,
+  )
+    .bind(firstDate)
+    .all();
+
+  return result.results;
+}
+
 const worker = {
   async fetch(request, env) {
     if (!authorized(request, env)) {
@@ -403,6 +425,15 @@ const worker = {
         return json({ error: "収入が見つかりません。" }, 404);
       }
       return updateIncome(request, env, id);
+    }
+
+    if (url.pathname === "/asset-history" && request.method === "GET") {
+      const requestedDays = Number(url.searchParams.get("days"));
+      const days =
+        Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 90
+          ? requestedDays
+          : 30;
+      return json(await listAssetHistory(env, days));
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {
