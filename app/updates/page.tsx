@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.13",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "固定費の合計表示を追加",
+    changes: [
+      "登録されている固定費の合計額を、固定費画面の一番下に表示するようにしました。",
+      "固定費を追加または編集すると、合計額もすぐに更新されます。",
+    ],
+  },
+  {
     version: "v0.1.12",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

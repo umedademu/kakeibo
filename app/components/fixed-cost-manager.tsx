@@ -51,6 +51,7 @@ export default function FixedCostManager() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
+  const totalAmount = fixedCosts.reduce((total, item) => total + item.amount, 0);
 
   useEffect(() => {
     let active = true;
@@ -308,6 +309,11 @@ export default function FixedCostManager() {
           ))}
         </ul>
       )}
+
+      <div className="fixed-cost-total">
+        <span>固定費合計</span>
+        <strong>{totalAmount.toLocaleString("ja-JP")}円</strong>
+      </div>
     </section>
   );
 }

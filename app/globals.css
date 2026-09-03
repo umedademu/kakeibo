@@ -587,6 +587,25 @@ a {
   gap: 8px;
 }
 
+.fixed-cost-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 4px 0;
+  border-top: 2px solid rgb(24 57 43 / 38%);
+}
+
+.fixed-cost-total span {
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.fixed-cost-total strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 560px) {
   .update-item {
     grid-template-columns: 1fr;
