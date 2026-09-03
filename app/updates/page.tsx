@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.12",
+    date: "2026年9月3日",
+    dateTime: "2026-09-03",
+    title: "固定費の入力欄を簡略化",
+    changes: [
+      "固定費画面の見出しと説明文を省き、表示をすっきりさせました。",
+      "項目名、金額、支払日の入力欄と追加ボタンを横1行にまとめました。",
+    ],
+  },
+  {
     version: "v0.1.11",
     date: "2026年9月3日",
     dateTime: "2026-09-03",

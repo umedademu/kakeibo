@@ -163,70 +163,52 @@ export default function FixedCostManager() {
 
   return (
     <section className="fixed-cost-section" aria-labelledby="fixed-cost-heading">
-      <div className="fixed-cost-intro">
-        <h1 id="fixed-cost-heading">固定費</h1>
-        <p>毎月支払う項目を登録します。</p>
-      </div>
+      <h1 className="visually-hidden" id="fixed-cost-heading">固定費</h1>
 
-      <form className="fixed-cost-form" onSubmit={addFixedCost}>
-        <h2>新規追加</h2>
-        <div className="fixed-cost-fields">
-          <label>
-            項目名
-            <input
-              maxLength={80}
-              onChange={(event) =>
-                setNewDraft((current) => ({ ...current, name: event.target.value }))
-              }
-              placeholder="例：家賃"
-              required
-              type="text"
-              value={newDraft.name}
-            />
-          </label>
-          <label>
-            金額
-            <span className="input-with-unit">
-              <input
-                inputMode="numeric"
-                min="0"
-                onChange={(event) =>
-                  setNewDraft((current) => ({ ...current, amount: event.target.value }))
-                }
-                placeholder="0"
-                required
-                step="1"
-                type="number"
-                value={newDraft.amount}
-              />
-              <span>円</span>
-            </span>
-          </label>
-          <label>
-            支払日
-            <span className="input-with-unit payment-day-input">
-              <input
-                inputMode="numeric"
-                max="31"
-                min="1"
-                onChange={(event) =>
-                  setNewDraft((current) => ({
-                    ...current,
-                    paymentDay: event.target.value,
-                  }))
-                }
-                placeholder="1"
-                required
-                step="1"
-                type="number"
-                value={newDraft.paymentDay}
-              />
-              <span>日</span>
-            </span>
-          </label>
-        </div>
+      <form aria-label="固定費の新規追加" className="fixed-cost-form" onSubmit={addFixedCost}>
+        <input
+          aria-label="項目名"
+          maxLength={80}
+          onChange={(event) =>
+            setNewDraft((current) => ({ ...current, name: event.target.value }))
+          }
+          placeholder="項目名"
+          required
+          type="text"
+          value={newDraft.name}
+        />
+        <input
+          aria-label="金額"
+          inputMode="numeric"
+          min="0"
+          onChange={(event) =>
+            setNewDraft((current) => ({ ...current, amount: event.target.value }))
+          }
+          placeholder="金額"
+          required
+          step="1"
+          type="number"
+          value={newDraft.amount}
+        />
+        <input
+          aria-label="支払日"
+          inputMode="numeric"
+          max="31"
+          min="1"
+          onChange={(event) =>
+            setNewDraft((current) => ({
+              ...current,
+              paymentDay: event.target.value,
+            }))
+          }
+          placeholder="支払日"
+          required
+          step="1"
+          type="number"
+          value={newDraft.paymentDay}
+        />
         <button className="primary-button" disabled={saving} type="submit">
-          {saving ? "保存中…" : "追加する"}
+          {saving ? "保存中…" : "追加"}
         </button>
       </form>
 
