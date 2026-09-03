@@ -33,7 +33,7 @@ Register-ScheduledTask `
   -Action $action `
   -Trigger $triggers `
   -Settings $settings `
-  -Description "Sends the MT5 USD balance to kakeibo six times per day." `
+  -Description "Sends the MT5 USD equity to kakeibo six times per day." `
   -Force | Out-Null
 
 Write-Output "Registered: $TaskName"

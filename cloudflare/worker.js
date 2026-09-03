@@ -99,17 +99,17 @@ async function syncSavedBallBalance(env, recordedAt) {
   return { amount, sourceUpdatedAt: data.sourceUpdatedAt ?? null, updatedAt: recordedAt };
 }
 
-async function syncFxBalance(request, env) {
+async function syncFxEquity(request, env) {
   const body = await request.json().catch(() => null);
-  const balanceUsd = body?.balanceUsd;
+  const equityUsd = body?.equityUsd;
   const usdJpyRate = body?.usdJpyRate;
   const rateSymbol = body?.rateSymbol;
   const sourceRecordedAt = body?.sourceRecordedAt;
   const rateRecordedAt = body?.rateRecordedAt;
 
   if (
-    !Number.isFinite(balanceUsd) ||
-    balanceUsd < 0 ||
+    !Number.isFinite(equityUsd) ||
+    equityUsd < 0 ||
     !Number.isFinite(usdJpyRate) ||
     usdJpyRate <= 0 ||
     typeof rateSymbol !== "string" ||
@@ -123,7 +123,7 @@ async function syncFxBalance(request, env) {
     return json({ error: "FX口座の情報が正しくありません。" }, 400);
   }
 
-  const amount = Math.round(balanceUsd * usdJpyRate);
+  const amount = Math.round(equityUsd * usdJpyRate);
   if (!Number.isSafeInteger(amount) || amount < 0) {
     return json({ error: "円換算後の残高が正しくありません。" }, 400);
   }
@@ -139,11 +139,11 @@ async function syncFxBalance(request, env) {
       "UPDATE current_balances SET amount = ?, updated_at = ? WHERE account_id = ?",
     ).bind(amount, receivedAt, "fx"),
     env.DB.prepare(
-      `INSERT INTO fx_sync_records
-       (balance_usd, usd_jpy_rate, balance_jpy, rate_symbol, source_recorded_at, rate_recorded_at, received_at)
+      `INSERT INTO fx_equity_sync_records
+       (equity_usd, usd_jpy_rate, equity_jpy, rate_symbol, source_recorded_at, rate_recorded_at, received_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
-      balanceUsd,
+      equityUsd,
       usdJpyRate,
       amount,
       rateSymbol,
@@ -214,7 +214,7 @@ const worker = {
     }
 
     if (url.pathname === "/sync/fx" && request.method === "POST") {
-      return syncFxBalance(request, env);
+      return syncFxEquity(request, env);
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {

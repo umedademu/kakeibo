@@ -18,7 +18,9 @@ import MetaTrader5 as mt5
 def parse_args() -> argparse.Namespace:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home()))
     default_log = local_app_data / "kakeibo" / "mt5-sync.log"
-    parser = argparse.ArgumentParser(description="MT5のドル残高を円換算してkakeiboへ送信します。")
+    parser = argparse.ArgumentParser(
+        description="MT5の有効証拠金を円換算してkakeiboへ送信します。"
+    )
     parser.add_argument("--terminal", required=True, help="terminal64.exeの場所")
     parser.add_argument("--env-file", required=True, help="kakeiboの.env.localの場所")
     parser.add_argument("--log-file", default=str(default_log), help="動作記録の保存先")
@@ -89,9 +91,9 @@ def read_mt5_values(terminal_path: Path) -> tuple[float, float, str, datetime]:
         if account.currency != "USD":
             raise RuntimeError(f"口座通貨がUSDではありません: {account.currency}")
 
-        balance_usd = float(account.balance)
-        if not math.isfinite(balance_usd) or balance_usd < 0:
-            raise RuntimeError("取得したドル残高が正しくありません。")
+        equity_usd = float(account.equity)
+        if not math.isfinite(equity_usd) or equity_usd < 0:
+            raise RuntimeError("取得した有効証拠金が正しくありません。")
 
         rate_symbol = find_usd_jpy_symbol()
         if not mt5.symbol_select(rate_symbol, True):
@@ -103,15 +105,15 @@ def read_mt5_values(terminal_path: Path) -> tuple[float, float, str, datetime]:
 
         usd_jpy_rate = (float(tick.bid) + float(tick.ask)) / 2
         rate_time = datetime.fromtimestamp(tick.time_msc / 1000, tz=timezone.utc)
-        return balance_usd, usd_jpy_rate, rate_symbol, rate_time
+        return equity_usd, usd_jpy_rate, rate_symbol, rate_time
     finally:
         mt5.shutdown()
 
 
-def send_balance(
+def send_equity(
     worker_url: str,
     secret: str,
-    balance_usd: float,
+    equity_usd: float,
     usd_jpy_rate: float,
     rate_symbol: str,
     rate_time: datetime,
@@ -119,7 +121,7 @@ def send_balance(
     recorded_at = datetime.now(timezone.utc)
     body = json.dumps(
         {
-            "balanceUsd": balance_usd,
+            "equityUsd": equity_usd,
             "usdJpyRate": usd_jpy_rate,
             "rateSymbol": rate_symbol,
             "sourceRecordedAt": recorded_at.isoformat(),
@@ -158,20 +160,23 @@ def main() -> int:
         if not worker_url or not secret:
             raise RuntimeError("Cloudflareへの接続設定が見つかりません。")
 
-        balance_usd, usd_jpy_rate, rate_symbol, rate_time = read_mt5_values(
+        equity_usd, usd_jpy_rate, rate_symbol, rate_time = read_mt5_values(
             Path(args.terminal)
         )
         if not args.dry_run:
-            send_balance(
+            send_equity(
                 worker_url,
                 secret,
-                balance_usd,
+                equity_usd,
                 usd_jpy_rate,
                 rate_symbol,
                 rate_time,
             )
 
-        logging.info("MT5残高の取得%sに成功しました。", "と送信" if not args.dry_run else "確認")
+        logging.info(
+            "MT5有効証拠金の取得%sに成功しました。",
+            "と送信" if not args.dry_run else "確認",
+        )
         print(
             json.dumps(
                 {
@@ -185,7 +190,7 @@ def main() -> int:
         )
         return 0
     except Exception as error:
-        logging.exception("MT5残高の同期に失敗しました: %s", error)
+        logging.exception("MT5有効証拠金の同期に失敗しました: %s", error)
         print(json.dumps({"ok": False, "error": str(error)}, ensure_ascii=False), file=sys.stderr)
         return 1
 
