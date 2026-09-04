@@ -23,6 +23,12 @@ type BalanceResponse = {
   isStale?: boolean;
 };
 
+type DebtResponse = {
+  amount: number;
+};
+
+const includeDebtsStorageKey = "kakeibo_include_debts";
+
 const initialInputs: Record<ManualAccountId, string> = {
   wallet: "0",
   paypay: "0",
@@ -53,10 +59,13 @@ export default function BalanceList() {
   const [messages, setMessages] = useState(initialMessages);
   const [editingAccount, setEditingAccount] = useState<ManualAccountId | null>(null);
   const [savingAccount, setSavingAccount] = useState<ManualAccountId | null>(null);
+  const [debtTotal, setDebtTotal] = useState<number | null>(null);
+  const [includeDebts, setIncludeDebts] = useState(false);
   const totalAssets = [...manualAccounts, ...readonlyAccounts].reduce(
     (total, account) => total + (balances[account.accountId]?.amount ?? 0),
     0,
   );
+  const displayedTotalAssets = totalAssets - (includeDebts ? (debtTotal ?? 0) : 0);
 
   useEffect(() => {
     let active = true;
@@ -108,6 +117,67 @@ export default function BalanceList() {
       window.clearInterval(intervalId);
     };
   }, []);
+
+  useEffect(() => {
+    let active = true;
+    let storedIncludeDebts = false;
+
+    try {
+      storedIncludeDebts = window.localStorage.getItem(includeDebtsStorageKey) === "true";
+    } catch {
+      storedIncludeDebts = false;
+    }
+
+    fetch("/api/debts", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error("借金を読み込めませんでした。");
+        }
+
+        const items = (await response.json()) as unknown;
+        if (
+          !Array.isArray(items) ||
+          !items.every(
+            (item): item is DebtResponse =>
+              typeof item === "object" &&
+              item !== null &&
+              Number.isSafeInteger((item as DebtResponse).amount) &&
+              (item as DebtResponse).amount >= 0,
+          )
+        ) {
+          throw new Error("借金を読み込めませんでした。");
+        }
+
+        const total = items.reduce((sum, item) => sum + item.amount, 0);
+        if (!Number.isSafeInteger(total)) {
+          throw new Error("借金合計を計算できませんでした。");
+        }
+
+        if (active) {
+          setDebtTotal(total);
+          setIncludeDebts(storedIncludeDebts);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setDebtTotal(null);
+          setIncludeDebts(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  function changeDebtInclusion(checked: boolean) {
+    setIncludeDebts(checked);
+    try {
+      window.localStorage.setItem(includeDebtsStorageKey, String(checked));
+    } catch {
+      // ブラウザへ保存できない場合も、開いている画面では選択を反映します。
+    }
+  }
 
   function startEditing(accountId: ManualAccountId) {
     const balance = balances[accountId];
@@ -197,7 +267,12 @@ export default function BalanceList() {
       <dl className="balance-list" aria-label="資産残高">
         <div className="balance-row total-balance-row">
           <dt>総資産</dt>
-          <dd>{totalAssets.toLocaleString("ja-JP")}円</dd>
+          <dd
+            aria-live="polite"
+            className={displayedTotalAssets < 0 ? "negative-balance" : undefined}
+          >
+            {displayedTotalAssets.toLocaleString("ja-JP")}円
+          </dd>
         </div>
 
         {manualAccounts.map((account) => (
@@ -270,6 +345,16 @@ export default function BalanceList() {
           </div>
         ))}
       </dl>
+
+      <label className="include-debts-toggle">
+        <input
+          checked={includeDebts}
+          disabled={debtTotal === null}
+          onChange={(event) => changeDebtInclusion(event.currentTarget.checked)}
+          type="checkbox"
+        />
+        <span>借金を含める</span>
+      </label>
     </section>
   );
 }

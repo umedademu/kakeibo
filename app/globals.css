@@ -87,6 +87,10 @@ a {
   font-size: 1.25rem;
 }
 
+.negative-balance {
+  color: #b42318;
+}
+
 .editable-balance-row,
 .readonly-balance-row {
   display: grid;
@@ -168,6 +172,29 @@ a {
   font-size: 0.75rem;
   line-height: 1.6;
   text-align: right;
+}
+
+.include-debts-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+  color: rgb(24 57 43 / 68%);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
+
+.include-debts-toggle input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--foreground);
+}
+
+.include-debts-toggle:has(input:disabled) {
+  cursor: wait;
+  opacity: 0.55;
 }
 
 .home-links {
