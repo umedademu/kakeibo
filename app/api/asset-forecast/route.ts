@@ -1,9 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { parseAssetPeriod } from "../../lib/asset-period";
 import { createAssetForecast } from "../../lib/asset-forecast";
 import { isAuthenticated, sessionCookieName } from "../../lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
   if (!isAuthenticated(cookieStore.get(sessionCookieName)?.value)) {
     return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
@@ -30,10 +31,13 @@ export async function GET() {
     return NextResponse.json({ error: "未来の資産推移を計算できませんでした。" }, { status: 502 });
   }
 
+  const days = parseAssetPeriod(new URL(request.url).searchParams.get("days"));
   const forecast = createAssetForecast(
     await balancesResponse.json().catch(() => null),
     await fixedCostsResponse.json().catch(() => null),
     await incomesResponse.json().catch(() => null),
+    new Date(),
+    days,
   );
 
   if (!forecast) {

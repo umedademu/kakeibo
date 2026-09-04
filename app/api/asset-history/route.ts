@@ -1,8 +1,9 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
+import { parseAssetPeriod } from "../../lib/asset-period";
 import { isAuthenticated, sessionCookieName } from "../../lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
   if (!isAuthenticated(cookieStore.get(sessionCookieName)?.value)) {
     return NextResponse.json({ error: "ログインが必要です。" }, { status: 401 });
@@ -18,7 +19,8 @@ export async function GET() {
     );
   }
 
-  const response = await fetch(`${workerUrl}/asset-history?days=30`, {
+  const days = parseAssetPeriod(new URL(request.url).searchParams.get("days"));
+  const response = await fetch(`${workerUrl}/asset-history?days=${days}`, {
     cache: "no-store",
     headers: { Authorization: `Bearer ${secret}` },
   }).catch(() => null);

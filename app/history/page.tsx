@@ -2,22 +2,22 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import AssetHistoryTable from "../components/asset-history-table";
 import { AssetPeriodLinks } from "../components/asset-period-switch";
-import ForecastTable from "../components/forecast-table";
 import LogoutButton from "../components/logout-button";
 import { parseAssetPeriod } from "../lib/asset-period";
 import { isAuthenticated } from "../lib/auth";
 
 export const metadata: Metadata = {
-  title: "未来の資産推移 | kakeibo",
-  description: "収入の反映方法と固定費の日割りで計算した未来の資産推移表です。",
+  title: "過去の資産推移 | kakeibo",
+  description: "毎日午前4時に記録した過去の総資産を確認できる表です。",
 };
 
-type ForecastPageProps = {
+type HistoryPageProps = {
   searchParams: Promise<{ days?: string | string[] }>;
 };
 
-export default async function ForecastPage({ searchParams }: ForecastPageProps) {
+export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   const cookieStore = await cookies();
 
   if (!isAuthenticated(cookieStore.get("kakeibo_session")?.value)) {
@@ -36,19 +36,16 @@ export default async function ForecastPage({ searchParams }: ForecastPageProps) 
           資産画面に戻る
         </Link>
 
-        <section className="forecast-section" aria-labelledby="forecast-title">
+        <section className="forecast-section" aria-labelledby="history-title">
           <header className="forecast-heading">
             <div className="forecast-title-row">
-              <h1 id="forecast-title">未来{days}日間の資産推移</h1>
-              <AssetPeriodLinks basePath="/forecast" days={days} label="未来の表示期間" />
+              <h1 id="history-title">過去{days}日間の資産推移</h1>
+              <AssetPeriodLinks basePath="/history" days={days} label="過去の表示期間" />
             </div>
-            <p>
-              現在の総資産に、一括または日割りで反映した収入と、日割りした固定費を加減した試算です。
-              臨時収支や残高自体の変動は含みません。
-            </p>
+            <p>毎日午前4時に前日分として記録した、借金を含めない総資産です。</p>
           </header>
 
-          <ForecastTable days={days} />
+          <AssetHistoryTable days={days} />
         </section>
 
         <footer className="forecast-footer">

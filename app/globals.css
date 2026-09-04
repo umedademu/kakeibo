@@ -257,6 +257,7 @@ a {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 20px;
 }
 
@@ -265,6 +266,52 @@ a {
   font-size: clamp(1.25rem, 2vw, 1.6rem);
   font-weight: 600;
   letter-spacing: 0.03em;
+}
+
+.asset-history-actions,
+.forecast-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.asset-history-actions {
+  margin-left: auto;
+}
+
+.asset-period-switch {
+  display: inline-flex;
+  flex: 0 0 auto;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid rgb(24 57 43 / 28%);
+  border-radius: 999px;
+}
+
+.asset-period-option {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 4px 8px;
+  text-decoration: none;
+}
+
+.asset-period-option.is-active {
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.asset-period-option:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
 }
 
 .asset-history-state {
@@ -296,6 +343,10 @@ a {
   font-size: 0.8rem;
   font-weight: 600;
   text-decoration: none;
+}
+
+.asset-history-actions .forecast-table-link {
+  margin-top: 0;
 }
 
 .forecast-table-link:hover {
@@ -848,6 +899,10 @@ a {
   letter-spacing: 0.03em;
 }
 
+.forecast-title-row h1 {
+  flex: 1 1 420px;
+}
+
 .forecast-heading p {
   margin: 14px 0 0;
   color: rgb(24 57 43 / 68%);
@@ -901,6 +956,10 @@ a {
 .forecast-table tbody td {
   font-size: 0.95rem;
   font-weight: 600;
+}
+
+.asset-history-table {
+  min-width: 360px;
 }
 
 @media (max-width: 560px) {

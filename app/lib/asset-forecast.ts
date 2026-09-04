@@ -1,3 +1,5 @@
+import type { AssetPeriodDays } from "./asset-period";
+
 export type AssetForecastPoint = {
   date: string;
   dailyIncome: number;
@@ -99,6 +101,7 @@ export function createAssetForecast(
   fixedCosts: unknown,
   incomes: unknown,
   now = new Date(),
+  days: AssetPeriodDays = 30,
 ): AssetForecast | null {
   const balanceAmounts = readAmounts(balances);
   const fixedCostAmounts = readAmounts(fixedCosts);
@@ -115,7 +118,7 @@ export function createAssetForecast(
   const points: AssetForecastPoint[] = [];
   let runningTotal = currentTotal;
 
-  for (let day = 1; day <= 30; day += 1) {
+  for (let day = 1; day <= days; day += 1) {
     const forecastDate = addDays(baseDate, day);
     const monthDays = daysInMonth(forecastDate);
     const dailyFixedCost = monthlyFixedCost / monthDays;

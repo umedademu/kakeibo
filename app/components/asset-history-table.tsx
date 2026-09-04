@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { AssetPeriodDays } from "../lib/asset-period";
-import type { AssetForecast, AssetForecastPoint } from "../lib/asset-forecast";
-
-type ForecastResult = Partial<AssetForecast> & { error?: string };
+import type { AssetLinePoint } from "./asset-line-chart";
 
 const moneyFormatter = new Intl.NumberFormat("ja-JP", {
   style: "currency",
@@ -13,6 +11,7 @@ const moneyFormatter = new Intl.NumberFormat("ja-JP", {
 });
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  year: "numeric",
   month: "numeric",
   day: "numeric",
   weekday: "short",
@@ -23,40 +22,32 @@ function formatDate(date: string) {
   return dateFormatter.format(new Date(`${date}T00:00:00Z`));
 }
 
-function validPoints(value: unknown): value is AssetForecastPoint[] {
-  return (
-    Array.isArray(value) &&
-    value.every(
-      (point) =>
-        typeof point?.date === "string" &&
-        Number.isFinite(point?.dailyIncome) &&
-        Number.isFinite(point?.dailyFixedCost) &&
-        Number.isFinite(point?.total),
-    )
-  );
-}
-
-export default function ForecastTable({ days }: { days: AssetPeriodDays }) {
-  const [points, setPoints] = useState<AssetForecastPoint[]>([]);
+export default function AssetHistoryTable({ days }: { days: AssetPeriodDays }) {
+  const [points, setPoints] = useState<AssetLinePoint[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
 
-    async function loadForecast() {
+    async function loadHistory() {
       try {
-        const response = await fetch(`/api/asset-forecast?days=${days}`, {
+        const response = await fetch(`/api/asset-history?days=${days}`, {
           cache: "no-store",
           signal: controller.signal,
         });
-        const data = (await response.json().catch(() => null)) as ForecastResult | null;
+        const data = await response.json().catch(() => null);
 
-        if (!response.ok || !data || !validPoints(data.points)) {
-          throw new Error(data?.error ?? "未来の資産推移を計算できませんでした。");
+        if (!response.ok || !Array.isArray(data)) {
+          throw new Error(data?.error ?? "資産推移を取得できませんでした。");
         }
 
-        setPoints(data.points);
+        setPoints(
+          data.filter(
+            (point): point is AssetLinePoint =>
+              typeof point?.date === "string" && Number.isFinite(point?.total),
+          ),
+        );
       } catch (loadError) {
         if (loadError instanceof Error && loadError.name !== "AbortError") {
           setError(loadError.message);
@@ -68,12 +59,12 @@ export default function ForecastTable({ days }: { days: AssetPeriodDays }) {
       }
     }
 
-    void loadForecast();
+    void loadHistory();
     return () => controller.abort();
   }, [days]);
 
   if (isLoading) {
-    return <p className="forecast-message">計算しています…</p>;
+    return <p className="forecast-message">読み込み中です…</p>;
   }
 
   if (error) {
@@ -84,23 +75,23 @@ export default function ForecastTable({ days }: { days: AssetPeriodDays }) {
     );
   }
 
+  if (points.length === 0) {
+    return <p className="forecast-message">日別の記録がたまると、ここに表示します。</p>;
+  }
+
   return (
     <div className="forecast-table-wrapper">
-      <table className="forecast-table">
+      <table className="forecast-table asset-history-table">
         <thead>
           <tr>
             <th scope="col">日付</th>
-            <th scope="col">当日の収入</th>
-            <th scope="col">1日分の固定費</th>
-            <th scope="col">予想資産</th>
+            <th scope="col">総資産</th>
           </tr>
         </thead>
         <tbody>
           {points.map((point) => (
             <tr key={point.date}>
               <th scope="row">{formatDate(point.date)}</th>
-              <td>＋{moneyFormatter.format(point.dailyIncome)}</td>
-              <td>−{moneyFormatter.format(point.dailyFixedCost)}</td>
               <td>{moneyFormatter.format(point.total)}</td>
             </tr>
           ))}
