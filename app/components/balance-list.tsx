@@ -67,6 +67,7 @@ export default function BalanceList() {
           if (!active) return;
           const nextBalances = Object.fromEntries(items.map((item) => [item.accountId, item]));
           setBalances(nextBalances);
+          window.dispatchEvent(new Event("kakeibo:balances-updated"));
 
           if (!initializeForms) return;
           setInputs({
@@ -173,6 +174,7 @@ export default function BalanceList() {
         [accountId]: "保存しました。ほかの端末にも同じ残高が表示されます。",
       }));
       setEditingAccount(null);
+      window.dispatchEvent(new Event("kakeibo:balances-updated"));
     } catch {
       setMessages((current) => ({
         ...current,

@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import AssetHistoryChart from "./components/asset-history-chart";
 import BalanceList from "./components/balance-list";
+import FutureAssetChart from "./components/future-asset-chart";
 import LogoutButton from "./components/logout-button";
 import { isAuthenticated } from "./lib/auth";
 
@@ -38,7 +39,10 @@ export default async function Home() {
           </div>
         </div>
 
-        <AssetHistoryChart />
+        <div className="home-charts">
+          <FutureAssetChart />
+          <AssetHistoryChart />
+        </div>
       </div>
     </main>
   );

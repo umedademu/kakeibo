@@ -45,6 +45,12 @@ a {
   gap: 32px;
 }
 
+.home-charts {
+  display: grid;
+  min-width: 0;
+  gap: 24px;
+}
+
 .home-header {
   position: relative;
 }
@@ -194,6 +200,13 @@ a {
   padding: clamp(20px, 3vw, 32px);
 }
 
+.asset-history-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .asset-history-header h2 {
   margin: 0;
   font-size: clamp(1.25rem, 2vw, 1.6rem);
@@ -209,7 +222,7 @@ a {
 
 .asset-history-state {
   display: grid;
-  min-height: 390px;
+  min-height: 330px;
   margin: 0;
   place-items: center;
   color: rgb(24 57 43 / 62%);
@@ -225,6 +238,28 @@ a {
 .asset-history-chart {
   width: 100%;
   margin-top: 18px;
+}
+
+.forecast-table-link {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.forecast-table-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.forecast-table-link:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--foreground);
+  outline-offset: 4px;
 }
 
 .asset-history-chart svg {
@@ -695,6 +730,97 @@ a {
   font-variant-numeric: tabular-nums;
 }
 
+.forecast-main {
+  min-height: 100svh;
+  padding: clamp(24px, 6vw, 64px) 24px;
+}
+
+.forecast-container {
+  display: flex;
+  width: min(100%, 860px);
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.forecast-back-link {
+  align-self: flex-start;
+  margin: 12px 0 0;
+}
+
+.forecast-section {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.forecast-heading {
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgb(24 57 43 / 24%);
+}
+
+.forecast-heading h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 5vw, 2.8rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.forecast-heading p {
+  margin: 14px 0 0;
+  color: rgb(24 57 43 / 68%);
+  font-size: 0.88rem;
+  line-height: 1.8;
+}
+
+.forecast-message {
+  margin: 48px 0;
+  color: rgb(24 57 43 / 68%);
+  text-align: center;
+}
+
+.forecast-table-wrapper {
+  overflow-x: auto;
+}
+
+.forecast-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.forecast-table th,
+.forecast-table td {
+  padding: 15px 12px;
+  border-bottom: 1px solid rgb(24 57 43 / 16%);
+}
+
+.forecast-table thead th {
+  color: rgb(24 57 43 / 62%);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.forecast-table th:first-child {
+  text-align: left;
+}
+
+.forecast-table td,
+.forecast-table thead th:not(:first-child) {
+  text-align: right;
+}
+
+.forecast-table tbody th {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.forecast-table tbody td {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
 @media (max-width: 560px) {
   .update-item {
     grid-template-columns: 1fr;
@@ -741,6 +867,6 @@ a {
   }
 
   .asset-history-state {
-    min-height: 280px;
+    min-height: 250px;
   }
 }
