@@ -31,8 +31,8 @@ function formatDate(date: string) {
 export default function AssetLineChart({ ariaLabel, points: sourcePoints }: AssetLineChartProps) {
   const chart = useMemo(() => {
     const width = 720;
-    const height = 330;
-    const margin = { top: 24, right: 24, bottom: 52, left: 76 };
+    const height = 280;
+    const margin = { top: 16, right: 24, bottom: 44, left: 76 };
     const chartWidth = width - margin.left - margin.right;
     const chartHeight = height - margin.top - margin.bottom;
     const totals = sourcePoints.map((point) => point.total);

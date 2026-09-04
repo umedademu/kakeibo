@@ -47,10 +47,7 @@ export default function AssetHistoryChart() {
   return (
     <section className="asset-history-panel" aria-labelledby="past-asset-history-title">
       <header className="asset-history-header">
-        <div>
-          <h2 id="past-asset-history-title">過去30日間の資産推移</h2>
-          <p>毎日午前4時に記録した総資産</p>
-        </div>
+        <h2 id="past-asset-history-title">過去30日間の資産推移</h2>
       </header>
 
       {isLoading ? (

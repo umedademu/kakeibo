@@ -68,10 +68,7 @@ export default function FutureAssetChart() {
   return (
     <section className="asset-history-panel" aria-labelledby="future-asset-history-title">
       <header className="asset-history-header">
-        <div>
-          <h2 id="future-asset-history-title">未来30日間の資産推移</h2>
-          <p>収入と固定費を各月の日数で日割りした試算</p>
-        </div>
+        <h2 id="future-asset-history-title">未来30日間の資産推移</h2>
         <Link className="forecast-table-link" href="/forecast">
           表で見る
           <span aria-hidden="true">→</span>

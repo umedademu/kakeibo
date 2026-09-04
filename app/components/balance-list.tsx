@@ -193,11 +193,7 @@ export default function BalanceList() {
   }
 
   return (
-    <section aria-labelledby="balance-heading">
-      <h2 className="section-title" id="balance-heading">
-        現在の残高
-      </h2>
-
+    <section aria-label="資産残高">
       <dl className="balance-list" aria-label="資産残高">
         <div className="balance-row total-balance-row">
           <dt>総資産</dt>
@@ -274,8 +270,6 @@ export default function BalanceList() {
           </div>
         ))}
       </dl>
-
-      <p className="cutoff-note">毎日午前4時の残高を、前日分として自動記録します。</p>
     </section>
   );
 }
