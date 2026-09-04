@@ -20,6 +20,7 @@ type BalanceResponse = {
   name: string;
   amount: number;
   updatedAt: string | null;
+  isStale?: boolean;
 };
 
 const initialInputs: Record<ManualAccountId, string> = {
@@ -35,6 +36,12 @@ const initialMessages: Record<ManualAccountId, string> = {
 };
 
 function updatedMessage(balance: BalanceResponse | undefined) {
+  if (balance?.isStale) {
+    return balance.updatedAt
+      ? `最新額を取得できないため、最終記録：${new Date(balance.updatedAt).toLocaleString("ja-JP")}`
+      : "最新の貯玉を取得できません。";
+  }
+
   return balance?.updatedAt
     ? `最終更新：${new Date(balance.updatedAt).toLocaleString("ja-JP")}`
     : "まだ残高は変更されていません。";

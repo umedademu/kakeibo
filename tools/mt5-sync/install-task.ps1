@@ -20,7 +20,10 @@ $action = New-ScheduledTaskAction `
   -Execute $pythonwPath `
   -Argument $arguments `
   -WorkingDirectory $repositoryRoot
-$triggers = @("01:00", "03:59", "09:00", "13:00", "17:00", "21:00") |
+$regularTimes = 0..23 |
+  Where-Object { $_ -ne 4 } |
+  ForEach-Object { "{0:D2}:00" -f $_ }
+$triggers = (@($regularTimes) + "03:59") |
   ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ }
 $settings = New-ScheduledTaskSettingsSet `
   -AllowStartIfOnBatteries `
@@ -33,7 +36,7 @@ Register-ScheduledTask `
   -Action $action `
   -Trigger $triggers `
   -Settings $settings `
-  -Description "Sends the MT5 USD equity to kakeibo six times per day." `
+  -Description "Sends the MT5 USD equity to kakeibo hourly, replacing 04:00 with 03:59." `
   -Force | Out-Null
 
 Write-Output "Registered: $TaskName"

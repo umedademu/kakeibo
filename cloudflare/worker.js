@@ -6,6 +6,14 @@ const accountNames = {
   fx: "FX口座",
 };
 
+const accountSortOrder = {
+  wallet: 1,
+  paypay: 2,
+  paypay_bank: 3,
+  pachinko: 4,
+  fx: 5,
+};
+
 const manuallyEditableAccountIds = new Set(["wallet", "paypay", "paypay_bank"]);
 
 function json(data, status = 200) {
@@ -57,7 +65,7 @@ async function updateBalance(request, env, accountId) {
   return json({ amount, updatedAt });
 }
 
-async function syncSavedBallBalance(env, recordedAt) {
+async function getSavedBallBalance(env) {
   if (!env.SHUSHI_SERVICE || !env.SHUSHI_READ_SECRET) {
     throw new Error("貯玉の接続設定がありません。");
   }
@@ -76,27 +84,59 @@ async function syncSavedBallBalance(env, recordedAt) {
     throw new Error("取得した貯玉残高が正しくありません。");
   }
 
-  const current = await env.DB.prepare(
-    "SELECT amount FROM current_balances WHERE account_id = ?",
+  const sourceUpdatedAt =
+    typeof data?.sourceUpdatedAt === "string" && !Number.isNaN(Date.parse(data.sourceUpdatedAt))
+      ? data.sourceUpdatedAt
+      : null;
+
+  return {
+    accountId: "pachinko",
+    name: accountNames.pachinko,
+    amount,
+    updatedAt: sourceUpdatedAt,
+    isStale: false,
+  };
+}
+
+async function getLastSavedBallSnapshot(env) {
+  const row = await env.DB.prepare(
+    `SELECT amount, recorded_at AS updatedAt
+     FROM daily_balance_snapshots
+     WHERE account_id = ?
+     ORDER BY balance_date DESC
+     LIMIT 1`,
   )
     .bind("pachinko")
     .first();
-  const statements = [
-    env.DB.prepare(
-      "UPDATE current_balances SET amount = ?, updated_at = ? WHERE account_id = ?",
-    ).bind(amount, recordedAt, "pachinko"),
-  ];
 
-  if (current?.amount !== amount) {
-    statements.push(
-      env.DB.prepare(
-        "INSERT INTO balance_events (account_id, amount, recorded_at) VALUES (?, ?, ?)",
-      ).bind("pachinko", amount, recordedAt),
-    );
-  }
+  return {
+    accountId: "pachinko",
+    name: accountNames.pachinko,
+    amount: row?.amount ?? 0,
+    updatedAt: row?.updatedAt ?? null,
+    isStale: true,
+  };
+}
 
-  await env.DB.batch(statements);
-  return { amount, sourceUpdatedAt: data.sourceUpdatedAt ?? null, updatedAt: recordedAt };
+async function listBalances(env) {
+  const balancesPromise = env.DB.prepare(
+    "SELECT account_id AS accountId, amount, updated_at AS updatedAt FROM current_balances ORDER BY sort_order",
+  ).all();
+  const savedBallPromise = getSavedBallBalance(env).catch(async (error) => {
+    console.error(error);
+    return getLastSavedBallSnapshot(env);
+  });
+  const [result, savedBall] = await Promise.all([balancesPromise, savedBallPromise]);
+
+  return [
+    ...result.results
+      .filter((row) => row.accountId !== "pachinko")
+      .map((row) => ({
+        ...row,
+        name: accountNames[row.accountId],
+      })),
+    savedBall,
+  ].sort((left, right) => accountSortOrder[left.accountId] - accountSortOrder[right.accountId]);
 }
 
 async function syncFxEquity(request, env) {
@@ -325,19 +365,34 @@ function previousDateInJapan(scheduledTime) {
   return japanTime.toISOString().slice(0, 10);
 }
 
-async function saveDailySnapshot(env, scheduledTime) {
+async function saveDailySnapshot(env, scheduledTime, savedBallAmount) {
   const balanceDate = previousDateInJapan(scheduledTime);
   const recordedAt = new Date(scheduledTime).toISOString();
+  const statements = [
+    env.DB.prepare(
+      `INSERT INTO daily_balance_snapshots (balance_date, account_id, amount, recorded_at)
+       SELECT ?, account_id, amount, ?
+       FROM current_balances
+       WHERE account_id <> 'pachinko'
+       ON CONFLICT(balance_date, account_id) DO UPDATE SET
+         amount = excluded.amount,
+         recorded_at = excluded.recorded_at`,
+    ).bind(balanceDate, recordedAt),
+  ];
 
-  await env.DB.prepare(
-    `INSERT INTO daily_balance_snapshots (balance_date, account_id, amount, recorded_at)
-     SELECT ?, account_id, amount, ? FROM current_balances WHERE 1 = 1
-     ON CONFLICT(balance_date, account_id) DO UPDATE SET
-       amount = excluded.amount,
-       recorded_at = excluded.recorded_at`,
-  )
-    .bind(balanceDate, recordedAt)
-    .run();
+  if (Number.isSafeInteger(savedBallAmount) && savedBallAmount >= 0) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT INTO daily_balance_snapshots (balance_date, account_id, amount, recorded_at)
+         VALUES (?, 'pachinko', ?, ?)
+         ON CONFLICT(balance_date, account_id) DO UPDATE SET
+           amount = excluded.amount,
+           recorded_at = excluded.recorded_at`,
+      ).bind(balanceDate, savedBallAmount, recordedAt),
+    );
+  }
+
+  await env.DB.batch(statements);
 }
 
 function dateInJapanDaysAgo(daysAgo) {
@@ -354,6 +409,7 @@ async function listAssetHistory(env, days) {
      WHERE balance_date >= ?
        AND account_id IN ('wallet', 'paypay', 'paypay_bank', 'pachinko', 'fx')
      GROUP BY balance_date
+     HAVING COUNT(DISTINCT account_id) = 5
      ORDER BY balance_date`,
   )
     .bind(firstDate)
@@ -378,15 +434,6 @@ const worker = {
 
     if (accountId && manuallyEditableAccountIds.has(accountId) && request.method === "PUT") {
       return updateBalance(request, env, accountId);
-    }
-
-    if (url.pathname === "/sync/pachinko" && request.method === "POST") {
-      try {
-        return json(await syncSavedBallBalance(env, new Date().toISOString()));
-      } catch (error) {
-        console.error(error);
-        return json({ error: "貯玉残高を更新できませんでした。" }, 502);
-      }
     }
 
     if (url.pathname === "/sync/fx" && request.method === "POST") {
@@ -437,15 +484,7 @@ const worker = {
     }
 
     if (url.pathname === "/balances" && request.method === "GET") {
-      const result = await env.DB.prepare(
-        "SELECT account_id AS accountId, amount, updated_at AS updatedAt FROM current_balances ORDER BY sort_order",
-      ).all();
-      return json(
-        result.results.map((row) => ({
-          ...row,
-          name: accountNames[row.accountId],
-        })),
-      );
+      return json(await listBalances(env));
     }
 
     return json({ error: "対象が見つかりません。" }, 404);
@@ -454,13 +493,15 @@ const worker = {
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       (async () => {
+        let savedBallAmount = null;
         try {
-          await syncSavedBallBalance(env, new Date(event.scheduledTime).toISOString());
+          const savedBall = await getSavedBallBalance(env);
+          savedBallAmount = savedBall.amount;
         } catch (error) {
           console.error(error);
         }
 
-        await saveDailySnapshot(env, event.scheduledTime);
+        await saveDailySnapshot(env, event.scheduledTime, savedBallAmount);
       })(),
     );
   },

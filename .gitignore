@@ -9,6 +9,9 @@
 # production
 /build
 
+# Cloudflare local state
+/.wrangler/
+
 # local environment files
 .env*
 !.env.example
