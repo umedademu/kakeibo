@@ -8,6 +8,15 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.19",
+    date: "2026年9月4日",
+    dateTime: "2026-09-04",
+    title: "9月3日の貯玉記録を訂正",
+    changes: [
+      "9月3日の貯玉記録を24,549円減額し、同日の資産推移へ反映しました。",
+    ],
+  },
+  {
     version: "v0.1.18",
     date: "2026年9月4日",
     dateTime: "2026-09-04",
