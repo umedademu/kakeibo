@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.22",
+    date: "2026年9月4日",
+    dateTime: "2026-09-04",
+    title: "管理画面の上部を省スペース化",
+    changes: [
+      "管理画面上部のkakeibo表記を削除し、切り替えと内容をすぐ確認できるようにしました。",
+      "ログアウトボタンを各管理画面の最下部へ移動しました。",
+    ],
+  },
+  {
     version: "v0.1.21",
     date: "2026年9月4日",
     dateTime: "2026-09-04",

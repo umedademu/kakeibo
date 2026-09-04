@@ -21,13 +21,6 @@ export default async function ForecastPage() {
   return (
     <main className="forecast-main">
       <div className="forecast-container">
-        <header className="fixed-costs-header">
-          <Link className="small-brand-title" href="/">
-            kakeibo
-          </Link>
-          <LogoutButton />
-        </header>
-
         <Link className="back-link forecast-back-link" href="/">
           <span aria-hidden="true">←</span>
           資産画面に戻る
@@ -44,6 +37,10 @@ export default async function ForecastPage() {
 
           <ForecastTable />
         </section>
+
+        <footer className="forecast-footer">
+          <LogoutButton />
+        </footer>
       </div>
     </main>
   );

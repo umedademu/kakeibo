@@ -62,31 +62,6 @@ a {
   min-width: 0;
 }
 
-.home-header {
-  position: relative;
-  padding-top: 34px;
-}
-
-.brand-title {
-  margin: 0;
-  font-size: clamp(2.75rem, 10vw, 5rem);
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  line-height: 1;
-  text-align: center;
-}
-
-.brand-title-link {
-  display: block;
-  text-decoration: none;
-}
-
-.brand-title-link:focus-visible {
-  border-radius: 6px;
-  outline: 2px solid var(--foreground);
-  outline-offset: 6px;
-}
-
 .balance-list {
   width: 100%;
   margin: 0;
@@ -212,7 +187,11 @@ a {
 
 .home-links {
   display: flex;
-  justify-content: center;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgb(24 57 43 / 18%);
 }
 
 .asset-history-panel {
@@ -359,9 +338,6 @@ a {
 }
 
 .logout-button {
-  position: absolute;
-  top: 0;
-  right: 0;
   padding: 7px 9px;
   background: transparent;
   color: var(--foreground);
@@ -749,6 +725,13 @@ a {
 .forecast-back-link {
   align-self: flex-start;
   margin: 12px 0 0;
+}
+
+.forecast-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 20px;
+  border-top: 1px solid rgb(24 57 43 / 18%);
 }
 
 .forecast-section {

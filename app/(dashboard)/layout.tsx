@@ -22,13 +22,6 @@ export default async function DashboardLayout({
     <main className="home-main">
       <div className="home-content">
         <section className="home-summary" aria-label="家計簿の管理内容">
-          <header className="home-header">
-            <Link className="brand-title-link" href="/">
-              <h1 className="brand-title">kakeibo</h1>
-            </Link>
-            <LogoutButton />
-          </header>
-
           <AppTabs />
 
           <div className="dashboard-view">{children}</div>
@@ -38,6 +31,7 @@ export default async function DashboardLayout({
               更新情報
               <span aria-hidden="true">→</span>
             </Link>
+            <LogoutButton />
           </div>
         </section>
 
