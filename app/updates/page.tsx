@@ -8,6 +8,15 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.26",
+    date: "2026年9月4日",
+    dateTime: "2026-09-04",
+    title: "借金表示の切り替えをトグル化",
+    changes: [
+      "「借金を含める」の操作部を、チェック欄から小型のトグルスイッチへ変更しました。",
+    ],
+  },
+  {
     version: "v0.1.25",
     date: "2026年9月4日",
     dateTime: "2026-09-04",

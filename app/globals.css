@@ -175,6 +175,7 @@ a {
 }
 
 .include-debts-toggle {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -185,11 +186,49 @@ a {
   font-size: 0.72rem;
 }
 
-.include-debts-toggle input {
-  width: 14px;
-  height: 14px;
-  margin: 0;
-  accent-color: var(--foreground);
+.include-debts-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.include-debts-switch {
+  position: relative;
+  width: 28px;
+  height: 16px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: rgb(24 57 43 / 24%);
+  box-shadow: inset 0 0 0 1px rgb(24 57 43 / 12%);
+  transition: background-color 160ms ease;
+}
+
+.include-debts-switch::after {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(10 28 20 / 30%);
+  content: "";
+  transition: transform 160ms ease;
+}
+
+.include-debts-input:checked + .include-debts-switch {
+  background: var(--foreground);
+}
+
+.include-debts-input:checked + .include-debts-switch::after {
+  transform: translateX(12px);
+}
+
+.include-debts-input:focus-visible + .include-debts-switch {
+  outline: 2px solid rgb(24 57 43 / 35%);
+  outline-offset: 2px;
 }
 
 .include-debts-toggle:has(input:disabled) {

@@ -348,11 +348,13 @@ export default function BalanceList() {
 
       <label className="include-debts-toggle">
         <input
+          className="include-debts-input"
           checked={includeDebts}
           disabled={debtTotal === null}
           onChange={(event) => changeDebtInclusion(event.currentTarget.checked)}
           type="checkbox"
         />
+        <span aria-hidden="true" className="include-debts-switch" />
         <span>借金を含める</span>
       </label>
     </section>
