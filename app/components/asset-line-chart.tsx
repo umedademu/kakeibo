@@ -114,7 +114,7 @@ export default function AssetLineChart({ ariaLabel, points: sourcePoints }: Asse
         ) : null}
 
         {chart.points.map((point) => (
-          <circle className="chart-point" cx={point.x} cy={point.y} key={point.date} r="4.5">
+          <circle className="chart-point" cx={point.x} cy={point.y} key={point.date} r="2.25">
             <title>{`${point.date} ${moneyFormatter.format(point.total)}`}</title>
           </circle>
         ))}

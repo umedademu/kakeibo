@@ -8,6 +8,16 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.29",
+    date: "2026年9月4日",
+    dateTime: "2026-09-04",
+    title: "資産推移グラフを細く調整",
+    changes: [
+      "未来・過去の資産推移グラフで、各点の丸印を約半分の大きさにしました。",
+      "折れ線を従来の約70%の太さにし、推移をすっきり確認できるようにしました。",
+    ],
+  },
+  {
     version: "v0.1.28",
     date: "2026年9月4日",
     dateTime: "2026-09-04",

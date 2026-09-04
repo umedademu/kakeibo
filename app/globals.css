@@ -341,13 +341,13 @@ a {
   stroke: var(--foreground);
   stroke-linecap: round;
   stroke-linejoin: round;
-  stroke-width: 3;
+  stroke-width: 2.1;
 }
 
 .chart-point {
   fill: var(--background);
   stroke: var(--foreground);
-  stroke-width: 3;
+  stroke-width: 1.5;
 }
 
 .app-tabs {
