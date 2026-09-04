@@ -13,6 +13,12 @@ export type AssetForecast = {
   points: AssetForecastPoint[];
 };
 
+type IncomeForecastItem = {
+  amount: number;
+  paymentDay: number;
+  accrualMethod: "lump_sum" | "daily";
+};
+
 function currentDateInJapan(now: Date) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Tokyo",
@@ -51,6 +57,43 @@ function readAmounts(items: unknown) {
   return amounts;
 }
 
+function readIncomes(items: unknown) {
+  if (!Array.isArray(items)) {
+    return null;
+  }
+
+  const incomes: IncomeForecastItem[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object") {
+      return null;
+    }
+
+    const { amount, paymentDay, accrualMethod } = item as {
+      amount?: unknown;
+      paymentDay?: unknown;
+      accrualMethod?: unknown;
+    };
+    if (
+      !Number.isSafeInteger(amount) ||
+      (amount as number) < 0 ||
+      !Number.isInteger(paymentDay) ||
+      (paymentDay as number) < 1 ||
+      (paymentDay as number) > 31 ||
+      (accrualMethod !== "lump_sum" && accrualMethod !== "daily")
+    ) {
+      return null;
+    }
+
+    incomes.push({
+      amount: amount as number,
+      paymentDay: paymentDay as number,
+      accrualMethod,
+    });
+  }
+
+  return incomes;
+}
+
 export function createAssetForecast(
   balances: unknown,
   fixedCosts: unknown,
@@ -59,23 +102,31 @@ export function createAssetForecast(
 ): AssetForecast | null {
   const balanceAmounts = readAmounts(balances);
   const fixedCostAmounts = readAmounts(fixedCosts);
-  const incomeAmounts = readAmounts(incomes);
+  const incomeItems = readIncomes(incomes);
 
-  if (!balanceAmounts || !fixedCostAmounts || !incomeAmounts) {
+  if (!balanceAmounts || !fixedCostAmounts || !incomeItems) {
     return null;
   }
 
   const currentTotal = balanceAmounts.reduce((total, amount) => total + amount, 0);
   const monthlyFixedCost = fixedCostAmounts.reduce((total, amount) => total + amount, 0);
-  const monthlyIncome = incomeAmounts.reduce((total, amount) => total + amount, 0);
+  const monthlyIncome = incomeItems.reduce((total, item) => total + item.amount, 0);
   const baseDate = currentDateInJapan(now);
   const points: AssetForecastPoint[] = [];
   let runningTotal = currentTotal;
 
   for (let day = 1; day <= 30; day += 1) {
     const forecastDate = addDays(baseDate, day);
-    const dailyFixedCost = monthlyFixedCost / daysInMonth(forecastDate);
-    const dailyIncome = monthlyIncome / daysInMonth(forecastDate);
+    const monthDays = daysInMonth(forecastDate);
+    const dailyFixedCost = monthlyFixedCost / monthDays;
+    const dailyIncome = incomeItems.reduce((total, item) => {
+      if (item.accrualMethod === "daily") {
+        return total + item.amount / monthDays;
+      }
+
+      const effectivePaymentDay = Math.min(item.paymentDay, monthDays);
+      return forecastDate.getUTCDate() === effectivePaymentDay ? total + item.amount : total;
+    }, 0);
     runningTotal += dailyIncome - dailyFixedCost;
     points.push({
       date: forecastDate.toISOString().slice(0, 10),

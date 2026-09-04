@@ -225,6 +225,17 @@ function readFixedCost(body) {
   return { name, amount, paymentDay };
 }
 
+function readIncome(body) {
+  const income = readFixedCost(body);
+  const accrualMethod = body?.accrualMethod;
+
+  if (!income || (accrualMethod !== "lump_sum" && accrualMethod !== "daily")) {
+    return null;
+  }
+
+  return { ...income, accrualMethod };
+}
+
 function readDebt(body) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const amount = body?.amount;
@@ -306,6 +317,7 @@ async function updateFixedCost(request, env, id) {
 async function listIncomes(env) {
   const result = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
+            accrual_method AS accrualMethod,
             created_at AS createdAt, updated_at AS updatedAt
      FROM incomes
      ORDER BY payment_day, id`,
@@ -315,17 +327,17 @@ async function listIncomes(env) {
 }
 
 async function createIncome(request, env) {
-  const income = readFixedCost(await request.json().catch(() => null));
+  const income = readIncome(await request.json().catch(() => null));
   if (!income) {
     return json({ error: "収入の内容が正しくありません。" }, 400);
   }
 
   const now = new Date().toISOString();
   const result = await env.DB.prepare(
-    `INSERT INTO incomes (name, amount, payment_day, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO incomes (name, amount, payment_day, accrual_method, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   )
-    .bind(income.name, income.amount, income.paymentDay, now, now)
+    .bind(income.name, income.amount, income.paymentDay, income.accrualMethod, now, now)
     .run();
 
   return json(
@@ -340,7 +352,7 @@ async function createIncome(request, env) {
 }
 
 async function updateIncome(request, env, id) {
-  const income = readFixedCost(await request.json().catch(() => null));
+  const income = readIncome(await request.json().catch(() => null));
   if (!income) {
     return json({ error: "収入の内容が正しくありません。" }, 400);
   }
@@ -348,10 +360,10 @@ async function updateIncome(request, env, id) {
   const now = new Date().toISOString();
   const result = await env.DB.prepare(
     `UPDATE incomes
-     SET name = ?, amount = ?, payment_day = ?, updated_at = ?
+     SET name = ?, amount = ?, payment_day = ?, accrual_method = ?, updated_at = ?
      WHERE id = ?`,
   )
-    .bind(income.name, income.amount, income.paymentDay, now, id)
+    .bind(income.name, income.amount, income.paymentDay, income.accrualMethod, now, id)
     .run();
 
   if (result.meta.changes !== 1) {
@@ -360,6 +372,7 @@ async function updateIncome(request, env, id) {
 
   const saved = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
+            accrual_method AS accrualMethod,
             created_at AS createdAt, updated_at AS updatedAt
      FROM incomes
      WHERE id = ?`,
