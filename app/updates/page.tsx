@@ -8,6 +8,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.24",
+    date: "2026年9月4日",
+    dateTime: "2026-09-04",
+    title: "借金の登録画面を追加",
+    changes: [
+      "資産、固定費、収入に加えて、借金を管理できる4つ目のタブを追加しました。",
+      "摘要と金額を入力して、借金の新規追加と編集ができます。",
+      "登録内容をCloudflareへ保存し、借金の合計額も表示します。",
+    ],
+  },
+  {
     version: "v0.1.23",
     date: "2026年9月4日",
     dateTime: "2026-09-04",

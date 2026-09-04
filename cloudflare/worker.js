@@ -225,6 +225,17 @@ function readFixedCost(body) {
   return { name, amount, paymentDay };
 }
 
+function readDebt(body) {
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  const amount = body?.amount;
+
+  if (name.length < 1 || name.length > 80 || !Number.isSafeInteger(amount) || amount < 0) {
+    return null;
+  }
+
+  return { name, amount };
+}
+
 async function listFixedCosts(env) {
   const result = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
@@ -359,6 +370,71 @@ async function updateIncome(request, env, id) {
   return json(saved);
 }
 
+async function listDebts(env) {
+  const result = await env.DB.prepare(
+    `SELECT id, name, amount, created_at AS createdAt, updated_at AS updatedAt
+     FROM debts
+     ORDER BY id`,
+  ).all();
+
+  return result.results;
+}
+
+async function createDebt(request, env) {
+  const debt = readDebt(await request.json().catch(() => null));
+  if (!debt) {
+    return json({ error: "借金の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `INSERT INTO debts (name, amount, created_at, updated_at)
+     VALUES (?, ?, ?, ?)`,
+  )
+    .bind(debt.name, debt.amount, now, now)
+    .run();
+
+  return json(
+    {
+      id: result.meta.last_row_id,
+      ...debt,
+      createdAt: now,
+      updatedAt: now,
+    },
+    201,
+  );
+}
+
+async function updateDebt(request, env, id) {
+  const debt = readDebt(await request.json().catch(() => null));
+  if (!debt) {
+    return json({ error: "借金の内容が正しくありません。" }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const result = await env.DB.prepare(
+    `UPDATE debts
+     SET name = ?, amount = ?, updated_at = ?
+     WHERE id = ?`,
+  )
+    .bind(debt.name, debt.amount, now, id)
+    .run();
+
+  if (result.meta.changes !== 1) {
+    return json({ error: "借金が見つかりません。" }, 404);
+  }
+
+  const saved = await env.DB.prepare(
+    `SELECT id, name, amount, created_at AS createdAt, updated_at AS updatedAt
+     FROM debts
+     WHERE id = ?`,
+  )
+    .bind(id)
+    .first();
+
+  return json(saved);
+}
+
 function previousDateInJapan(scheduledTime) {
   const japanTime = new Date(scheduledTime + 9 * 60 * 60 * 1000);
   japanTime.setUTCDate(japanTime.getUTCDate() - 1);
@@ -472,6 +548,23 @@ const worker = {
         return json({ error: "収入が見つかりません。" }, 404);
       }
       return updateIncome(request, env, id);
+    }
+
+    if (url.pathname === "/debts" && request.method === "GET") {
+      return json(await listDebts(env));
+    }
+
+    if (url.pathname === "/debts" && request.method === "POST") {
+      return createDebt(request, env);
+    }
+
+    const debtPath = url.pathname.match(/^\/debts\/(\d+)$/);
+    if (debtPath && request.method === "PUT") {
+      const id = Number(debtPath[1]);
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return json({ error: "借金が見つかりません。" }, 404);
+      }
+      return updateDebt(request, env, id);
     }
 
     if (url.pathname === "/asset-history" && request.method === "GET") {

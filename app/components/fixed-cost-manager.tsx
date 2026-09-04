@@ -6,7 +6,7 @@ type FixedCost = {
   id: number;
   name: string;
   amount: number;
-  paymentDay: number;
+  paymentDay?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -17,13 +17,22 @@ type Draft = {
   paymentDay: string;
 };
 
-type ManagerKind = "fixed-costs" | "incomes";
+type ManagerKind = "fixed-costs" | "incomes" | "debts";
 
 type FixedCostManagerProps = {
   kind?: ManagerKind;
 };
 
-const managerSettings = {
+type ManagerSettings = {
+  apiPath: string;
+  subject: string;
+  dayLabel: string | null;
+  nameInputLabel: string;
+  emptyMessage: string;
+  totalLabel: string;
+};
+
+const managerSettings: Record<ManagerKind, ManagerSettings> = {
   "fixed-costs": {
     apiPath: "/api/fixed-costs",
     subject: "固定費",
@@ -40,28 +49,38 @@ const managerSettings = {
     emptyMessage: "登録済みの収入はありません。",
     totalLabel: "収入合計",
   },
-} as const;
+  debts: {
+    apiPath: "/api/debts",
+    subject: "借金",
+    dayLabel: null,
+    nameInputLabel: "摘要",
+    emptyMessage: "登録済みの借金はありません。",
+    totalLabel: "借金合計",
+  },
+};
 
 const emptyDraft: Draft = { name: "", amount: "", paymentDay: "" };
 
-function sorted(items: FixedCost[]) {
-  return [...items].sort((a, b) => a.paymentDay - b.paymentDay || a.id - b.id);
+function sorted(items: FixedCost[], hasDay: boolean) {
+  return [...items].sort((a, b) =>
+    hasDay ? (a.paymentDay ?? 0) - (b.paymentDay ?? 0) || a.id - b.id : a.id - b.id,
+  );
 }
 
-function values(draft: Draft) {
+function values(draft: Draft, hasDay: boolean) {
   const name = draft.name.trim();
   const amount = Number(draft.amount);
-  const paymentDay = Number(draft.paymentDay);
 
-  if (
-    !name ||
-    name.length > 80 ||
-    !Number.isSafeInteger(amount) ||
-    amount < 0 ||
-    !Number.isInteger(paymentDay) ||
-    paymentDay < 1 ||
-    paymentDay > 31
-  ) {
+  if (!name || name.length > 80 || !Number.isSafeInteger(amount) || amount < 0) {
+    return null;
+  }
+
+  if (!hasDay) {
+    return { name, amount };
+  }
+
+  const paymentDay = Number(draft.paymentDay);
+  if (!Number.isInteger(paymentDay) || paymentDay < 1 || paymentDay > 31) {
     return null;
   }
 
@@ -70,6 +89,7 @@ function values(draft: Draft) {
 
 export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostManagerProps) {
   const settings = managerSettings[kind];
+  const hasDay = settings.dayLabel !== null;
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -91,7 +111,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       })
       .then((items) => {
         if (active) {
-          setFixedCosts(sorted(items));
+          setFixedCosts(sorted(items, hasDay));
         }
       })
       .catch(() => {
@@ -108,14 +128,16 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
     return () => {
       active = false;
     };
-  }, [settings]);
+  }, [hasDay, settings]);
 
   async function addFixedCost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const body = values(newDraft);
+    const body = values(newDraft, hasDay);
     if (!body) {
       setMessage(
-        `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`,
+        hasDay
+          ? `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`
+          : `${settings.nameInputLabel}と0円以上の金額を入力してください。`,
       );
       return;
     }
@@ -133,7 +155,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       }
 
       const saved = (await response.json()) as FixedCost;
-      setFixedCosts((current) => sorted([...current, saved]));
+      setFixedCosts((current) => sorted([...current, saved], hasDay));
       setNewDraft(emptyDraft);
       setMessage(`${settings.subject}を追加しました。`);
     } catch {
@@ -148,7 +170,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
     setEditDraft({
       name: item.name,
       amount: String(item.amount),
-      paymentDay: String(item.paymentDay),
+      paymentDay: item.paymentDay === undefined ? "" : String(item.paymentDay),
     });
     setMessage("");
   }
@@ -159,10 +181,12 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       return;
     }
 
-    const body = values(editDraft);
+    const body = values(editDraft, hasDay);
     if (!body) {
       setMessage(
-        `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`,
+        hasDay
+          ? `${settings.nameInputLabel}、0円以上の金額、1～31日の${settings.dayLabel}を入力してください。`
+          : `${settings.nameInputLabel}と0円以上の金額を入力してください。`,
       );
       return;
     }
@@ -181,7 +205,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
 
       const saved = (await response.json()) as FixedCost;
       setFixedCosts((current) =>
-        sorted(current.map((item) => (item.id === saved.id ? saved : item))),
+        sorted(current.map((item) => (item.id === saved.id ? saved : item)), hasDay),
       );
       setEditingId(null);
       setMessage(`${settings.subject}を更新しました。`);
@@ -198,26 +222,28 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
 
       <form
         aria-label={`${settings.subject}の新規追加`}
-        className="fixed-cost-form"
+        className={`fixed-cost-form${hasDay ? "" : " debt-form"}`}
         onSubmit={addFixedCost}
       >
-        <input
-          aria-label={settings.dayLabel}
-          inputMode="numeric"
-          max="31"
-          min="1"
-          onChange={(event) =>
-            setNewDraft((current) => ({
-              ...current,
-              paymentDay: event.target.value,
-            }))
-          }
-          placeholder={settings.dayLabel}
-          required
-          step="1"
-          type="number"
-          value={newDraft.paymentDay}
-        />
+        {hasDay ? (
+          <input
+            aria-label={settings.dayLabel ?? undefined}
+            inputMode="numeric"
+            max="31"
+            min="1"
+            onChange={(event) =>
+              setNewDraft((current) => ({
+                ...current,
+                paymentDay: event.target.value,
+              }))
+            }
+            placeholder={settings.dayLabel ?? undefined}
+            required
+            step="1"
+            type="number"
+            value={newDraft.paymentDay}
+          />
+        ) : null}
         <input
           aria-label={settings.nameInputLabel}
           maxLength={80}
@@ -247,8 +273,10 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
         </button>
       </form>
 
-      <div className="fixed-cost-column-headings">
-        <span>{settings.dayLabel}</span>
+      <div
+        className={`fixed-cost-column-headings${hasDay ? "" : " debt-column-headings"}`}
+      >
+        {hasDay ? <span>{settings.dayLabel}</span> : null}
         <span>摘要</span>
         <span>金額</span>
         <span aria-hidden="true" />
@@ -265,25 +293,30 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
           {fixedCosts.map((item) => (
             <li key={item.id}>
               {editingId === item.id ? (
-                <form className="fixed-cost-edit-form" onSubmit={saveEdit}>
-                  <label>
-                    {settings.dayLabel}
-                    <input
-                      inputMode="numeric"
-                      max="31"
-                      min="1"
-                      onChange={(event) =>
-                        setEditDraft((current) => ({
-                          ...current,
-                          paymentDay: event.target.value,
-                        }))
-                      }
-                      required
-                      step="1"
-                      type="number"
-                      value={editDraft.paymentDay}
-                    />
-                  </label>
+                <form
+                  className={`fixed-cost-edit-form${hasDay ? "" : " debt-edit-form"}`}
+                  onSubmit={saveEdit}
+                >
+                  {hasDay ? (
+                    <label>
+                      {settings.dayLabel}
+                      <input
+                        inputMode="numeric"
+                        max="31"
+                        min="1"
+                        onChange={(event) =>
+                          setEditDraft((current) => ({
+                            ...current,
+                            paymentDay: event.target.value,
+                          }))
+                        }
+                        required
+                        step="1"
+                        type="number"
+                        value={editDraft.paymentDay}
+                      />
+                    </label>
+                  ) : null}
                   <label>
                     {settings.nameInputLabel}
                     <input
@@ -325,8 +358,8 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
                   </div>
                 </form>
               ) : (
-                <div className="fixed-cost-row">
-                  <p>{item.paymentDay}日</p>
+                <div className={`fixed-cost-row${hasDay ? "" : " debt-row"}`}>
+                  {hasDay ? <p>{item.paymentDay}日</p> : null}
                   <h3>{item.name}</h3>
                   <strong>{item.amount.toLocaleString("ja-JP")}円</strong>
                   <button

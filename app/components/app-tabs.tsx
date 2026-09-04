@@ -7,6 +7,7 @@ const tabs = [
   { href: "/", label: "資産" },
   { href: "/fixed-costs", label: "固定費" },
   { href: "/incomes", label: "収入" },
+  { href: "/debts", label: "借金" },
 ];
 
 export default function AppTabs() {
