@@ -310,7 +310,6 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
         {isIncome ? <span>反映</span> : null}
         <span>摘要</span>
         <span>金額</span>
-        <span aria-hidden="true" />
       </div>
 
       {message ? <p className="fixed-cost-message" role="status">{message}</p> : null}
@@ -406,24 +405,22 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
                   </div>
                 </form>
               ) : (
-                <div
+                <button
+                  aria-label={`${settings.subject}「${item.name}」を編集`}
                   className={`fixed-cost-row${isIncome ? " income-row" : hasDay ? "" : " debt-row"}`}
+                  disabled={saving || editingId !== null}
+                  onClick={() => startEditing(item)}
+                  type="button"
                 >
-                  {hasDay ? <p>{item.paymentDay}日</p> : null}
+                  {hasDay ? <span className="fixed-cost-detail">{item.paymentDay}日</span> : null}
                   {isIncome ? (
-                    <p>{item.accrualMethod === "daily" ? "日割り" : "一括"}</p>
+                    <span className="fixed-cost-detail">
+                      {item.accrualMethod === "daily" ? "日割り" : "一括"}
+                    </span>
                   ) : null}
-                  <h3>{item.name}</h3>
+                  <span className="fixed-cost-name">{item.name}</span>
                   <strong>{item.amount.toLocaleString("ja-JP")}円</strong>
-                  <button
-                    className="edit-button"
-                    disabled={saving || editingId !== null}
-                    onClick={() => startEditing(item)}
-                    type="button"
-                  >
-                    編集
-                  </button>
-                </div>
+                </button>
               )}
             </li>
           ))}

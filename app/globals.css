@@ -634,8 +634,7 @@ a {
 }
 
 .primary-button,
-.secondary-button,
-.edit-button {
+.secondary-button {
   border: 1px solid var(--foreground);
   border-radius: 7px;
   cursor: pointer;
@@ -645,31 +644,25 @@ a {
   padding: 9px 13px;
 }
 
-.edit-button {
-  padding-inline: 9px;
-}
-
 .primary-button {
   background: var(--foreground);
   color: var(--background);
 }
 
-.secondary-button,
-.edit-button {
+.secondary-button {
   background: transparent;
   color: var(--foreground);
 }
 
 .primary-button:disabled,
-.secondary-button:disabled,
-.edit-button:disabled {
+.secondary-button:disabled {
   cursor: wait;
   opacity: 0.5;
 }
 
 .fixed-cost-column-headings {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 112px 54px;
+  grid-template-columns: 72px minmax(0, 1fr) 112px;
   gap: 18px;
   border-bottom: 1px solid rgb(24 57 43 / 24%);
   padding: 0 4px 12px;
@@ -687,14 +680,14 @@ a {
 }
 
 .income-column-headings,
-.income-row {
-  grid-template-columns: 60px 48px minmax(0, 1fr) 96px 50px;
+.fixed-cost-row.income-row {
+  grid-template-columns: 60px 48px minmax(0, 1fr) 100px;
   gap: 10px;
 }
 
 .debt-column-headings,
-.debt-row {
-  grid-template-columns: minmax(0, 1fr) 112px 54px;
+.fixed-cost-row.debt-row {
+  grid-template-columns: minmax(0, 1fr) 112px;
 }
 
 .debt-column-headings span:nth-child(2) {
@@ -722,23 +715,41 @@ a {
 
 .fixed-cost-row {
   display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) 112px 54px;
+  width: 100%;
+  grid-template-columns: 72px minmax(0, 1fr) 112px;
   align-items: center;
   gap: 18px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+  font: inherit;
+  padding: 4px 0;
+  text-align: left;
 }
 
-.fixed-cost-row h3,
-.fixed-cost-row p {
-  margin: 0;
+.fixed-cost-row:not(:disabled):hover {
+  background: rgb(24 57 43 / 5%);
 }
 
-.fixed-cost-row h3 {
+.fixed-cost-row:focus-visible {
+  outline: 2px solid rgb(24 57 43 / 35%);
+  outline-offset: 3px;
+}
+
+.fixed-cost-row:disabled {
+  cursor: default;
+}
+
+.fixed-cost-name {
   min-width: 0;
   font-size: 1rem;
+  font-weight: 600;
   overflow-wrap: anywhere;
 }
 
-.fixed-cost-row p {
+.fixed-cost-detail {
   color: rgb(24 57 43 / 65%);
   font-size: 0.78rem;
   white-space: nowrap;
@@ -943,18 +954,18 @@ a {
   }
 
   .fixed-cost-row {
-    grid-template-columns: 55px minmax(0, 1fr) 84px 50px;
+    grid-template-columns: 55px minmax(0, 1fr) 92px;
     gap: 8px;
   }
 
   .fixed-cost-column-headings {
-    grid-template-columns: 55px minmax(0, 1fr) 84px 50px;
+    grid-template-columns: 55px minmax(0, 1fr) 92px;
     gap: 8px;
   }
 
   .income-column-headings,
-  .income-row {
-    grid-template-columns: 48px 46px minmax(0, 1fr) 76px 46px;
+  .fixed-cost-row.income-row {
+    grid-template-columns: 48px 46px minmax(0, 1fr) 92px;
     gap: 6px;
   }
 
@@ -963,8 +974,8 @@ a {
   }
 
   .debt-column-headings,
-  .debt-row {
-    grid-template-columns: minmax(0, 1fr) 84px 50px;
+  .fixed-cost-row.debt-row {
+    grid-template-columns: minmax(0, 1fr) 92px;
   }
 }
 
