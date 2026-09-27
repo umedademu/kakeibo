@@ -91,7 +91,7 @@ export default function ForecastTable({ days }: { days: AssetPeriodDays }) {
           <tr>
             <th scope="col">日付</th>
             <th scope="col">当日の収入</th>
-            <th scope="col">1日分の固定費</th>
+            <th scope="col">当日の固定費</th>
             <th scope="col">予想資産</th>
           </tr>
         </thead>

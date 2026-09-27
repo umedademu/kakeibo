@@ -2,14 +2,14 @@
 
 import { FormEvent, useEffect, useState } from "react";
 
-type IncomeAccrualMethod = "lump_sum" | "daily";
+type AccrualMethod = "lump_sum" | "daily";
 
 type FixedCost = {
   id: number;
   name: string;
   amount: number;
   paymentDay?: number;
-  accrualMethod?: IncomeAccrualMethod;
+  accrualMethod?: AccrualMethod;
   createdAt: string;
   updatedAt: string;
 };
@@ -18,7 +18,7 @@ type Draft = {
   name: string;
   amount: string;
   paymentDay: string;
-  accrualMethod: IncomeAccrualMethod;
+  accrualMethod: AccrualMethod;
 };
 
 type ManagerKind = "fixed-costs" | "incomes" | "debts";
@@ -76,7 +76,7 @@ function sorted(items: FixedCost[], hasDay: boolean) {
   );
 }
 
-function values(draft: Draft, hasDay: boolean, isIncome: boolean) {
+function values(draft: Draft, hasDay: boolean) {
   const name = draft.name.trim();
   const amount = Number(draft.amount);
 
@@ -93,17 +93,12 @@ function values(draft: Draft, hasDay: boolean, isIncome: boolean) {
     return null;
   }
 
-  if (isIncome) {
-    return { name, amount, paymentDay, accrualMethod: draft.accrualMethod };
-  }
-
-  return { name, amount, paymentDay };
+  return { name, amount, paymentDay, accrualMethod: draft.accrualMethod };
 }
 
 export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostManagerProps) {
   const settings = managerSettings[kind];
   const hasDay = settings.dayLabel !== null;
-  const isIncome = kind === "incomes";
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -146,7 +141,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
 
   async function addFixedCost(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const body = values(newDraft, hasDay, isIncome);
+    const body = values(newDraft, hasDay);
     if (!body) {
       setMessage(
         hasDay
@@ -172,6 +167,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       setFixedCosts((current) => sorted([...current, saved], hasDay));
       setNewDraft(emptyDraft);
       setMessage(`${settings.subject}を追加しました。`);
+      if (hasDay) window.dispatchEvent(new Event("kakeibo:recurring-items-updated"));
     } catch {
       setMessage(`${settings.subject}を保存できませんでした。時間をおいて再度お試しください。`);
     } finally {
@@ -185,7 +181,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       name: item.name,
       amount: String(item.amount),
       paymentDay: item.paymentDay === undefined ? "" : String(item.paymentDay),
-      accrualMethod: item.accrualMethod ?? "lump_sum",
+      accrualMethod: item.accrualMethod ?? "daily",
     });
     setMessage("");
   }
@@ -196,7 +192,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       return;
     }
 
-    const body = values(editDraft, hasDay, isIncome);
+    const body = values(editDraft, hasDay);
     if (!body) {
       setMessage(
         hasDay
@@ -224,6 +220,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       );
       setEditingId(null);
       setMessage(`${settings.subject}を更新しました。`);
+      if (hasDay) window.dispatchEvent(new Event("kakeibo:recurring-items-updated"));
     } catch {
       setMessage(`${settings.subject}を保存できませんでした。時間をおいて再度お試しください。`);
     } finally {
@@ -237,7 +234,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
 
       <form
         aria-label={`${settings.subject}の新規追加`}
-        className={`fixed-cost-form${isIncome ? " income-form" : hasDay ? "" : " debt-form"}`}
+        className={`fixed-cost-form${hasDay ? " recurring-form" : " debt-form"}`}
         onSubmit={addFixedCost}
       >
         {hasDay ? (
@@ -259,13 +256,13 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
             value={newDraft.paymentDay}
           />
         ) : null}
-        {isIncome ? (
+        {hasDay ? (
           <select
             aria-label="反映"
             onChange={(event) =>
               setNewDraft((current) => ({
                 ...current,
-                accrualMethod: event.target.value as IncomeAccrualMethod,
+                accrualMethod: event.target.value as AccrualMethod,
               }))
             }
             value={newDraft.accrualMethod}
@@ -304,10 +301,10 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       </form>
 
       <div
-        className={`fixed-cost-column-headings${isIncome ? " income-column-headings" : hasDay ? "" : " debt-column-headings"}`}
+        className={`fixed-cost-column-headings${hasDay ? " recurring-column-headings" : " debt-column-headings"}`}
       >
         {hasDay ? <span>{settings.dayLabel}</span> : null}
-        {isIncome ? <span>反映</span> : null}
+        {hasDay ? <span>反映</span> : null}
         <span>摘要</span>
         <span>金額</span>
       </div>
@@ -324,7 +321,7 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
             <li key={item.id}>
               {editingId === item.id ? (
                 <form
-                  className={`fixed-cost-edit-form${isIncome ? " income-edit-form" : hasDay ? "" : " debt-edit-form"}`}
+                  className={`fixed-cost-edit-form${hasDay ? " recurring-edit-form" : " debt-edit-form"}`}
                   onSubmit={saveEdit}
                 >
                   {hasDay ? (
@@ -347,14 +344,14 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
                       />
                     </label>
                   ) : null}
-                  {isIncome ? (
+                  {hasDay ? (
                     <label>
                       反映
                       <select
                         onChange={(event) =>
                           setEditDraft((current) => ({
                             ...current,
-                            accrualMethod: event.target.value as IncomeAccrualMethod,
+                            accrualMethod: event.target.value as AccrualMethod,
                           }))
                         }
                         value={editDraft.accrualMethod}
@@ -407,15 +404,15 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
               ) : (
                 <button
                   aria-label={`${settings.subject}「${item.name}」を編集`}
-                  className={`fixed-cost-row${isIncome ? " income-row" : hasDay ? "" : " debt-row"}`}
+                  className={`fixed-cost-row${hasDay ? " recurring-row" : " debt-row"}`}
                   disabled={saving || editingId !== null}
                   onClick={() => startEditing(item)}
                   type="button"
                 >
                   {hasDay ? <span className="fixed-cost-detail">{item.paymentDay}日</span> : null}
-                  {isIncome ? (
+                  {hasDay ? (
                     <span className="fixed-cost-detail">
-                      {item.accrualMethod === "daily" ? "日割り" : "一括"}
+                      {item.accrualMethod === "lump_sum" ? "一括" : "日割り"}
                     </span>
                   ) : null}
                   <span className="fixed-cost-name">{item.name}</span>

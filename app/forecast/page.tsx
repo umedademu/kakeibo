@@ -11,7 +11,7 @@ import { isAuthenticated } from "../lib/auth";
 
 export const metadata: Metadata = {
   title: "未来の資産推移 | kakeibo",
-  description: "収入の反映方法と固定費の日割りで計算した未来の資産推移表です。",
+  description: "収入と固定費の反映方法に合わせて計算した未来の資産推移表です。",
 };
 
 type ForecastPageProps = {
@@ -44,7 +44,7 @@ export default async function ForecastPage({ searchParams }: ForecastPageProps) 
               <AssetPeriodLinks basePath="/forecast" days={days} label="未来の表示期間" />
             </div>
             <p>
-              現在の総資産に、一括または日割りで反映した収入と、日割りした固定費を加減した試算です。
+              現在の総資産に、項目ごとに一括または日割りで反映した収入と固定費を加減した試算です。
               臨時収支や残高自体の変動は含みません。
             </p>
           </header>

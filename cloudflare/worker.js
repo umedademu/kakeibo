@@ -209,6 +209,7 @@ function readFixedCost(body) {
   const name = typeof body?.name === "string" ? body.name.trim() : "";
   const amount = body?.amount;
   const paymentDay = body?.paymentDay;
+  const accrualMethod = body?.accrualMethod;
 
   if (
     name.length < 1 ||
@@ -217,12 +218,13 @@ function readFixedCost(body) {
     amount < 0 ||
     !Number.isInteger(paymentDay) ||
     paymentDay < 1 ||
-    paymentDay > 31
+    paymentDay > 31 ||
+    (accrualMethod !== undefined && accrualMethod !== "lump_sum" && accrualMethod !== "daily")
   ) {
     return null;
   }
 
-  return { name, amount, paymentDay };
+  return { name, amount, paymentDay, accrualMethod };
 }
 
 function readIncome(body) {
@@ -250,6 +252,7 @@ function readDebt(body) {
 async function listFixedCosts(env) {
   const result = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
+            accrual_method AS accrualMethod,
             created_at AS createdAt, updated_at AS updatedAt
      FROM fixed_costs
      ORDER BY payment_day, id`,
@@ -264,12 +267,14 @@ async function createFixedCost(request, env) {
     return json({ error: "固定費の内容が正しくありません。" }, 400);
   }
 
+  // 更新前の画面は反映方法を送信しないため、従来の日割りで登録します。
+  fixedCost.accrualMethod ??= "daily";
   const now = new Date().toISOString();
   const result = await env.DB.prepare(
-    `INSERT INTO fixed_costs (name, amount, payment_day, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?)`,
+    `INSERT INTO fixed_costs (name, amount, payment_day, accrual_method, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
   )
-    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, now, now)
+    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, fixedCost.accrualMethod, now, now)
     .run();
 
   return json(
@@ -292,10 +297,11 @@ async function updateFixedCost(request, env, id) {
   const now = new Date().toISOString();
   const result = await env.DB.prepare(
     `UPDATE fixed_costs
-     SET name = ?, amount = ?, payment_day = ?, updated_at = ?
+     SET name = ?, amount = ?, payment_day = ?,
+         accrual_method = COALESCE(?, accrual_method), updated_at = ?
      WHERE id = ?`,
   )
-    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, now, id)
+    .bind(fixedCost.name, fixedCost.amount, fixedCost.paymentDay, fixedCost.accrualMethod ?? null, now, id)
     .run();
 
   if (result.meta.changes !== 1) {
@@ -304,6 +310,7 @@ async function updateFixedCost(request, env, id) {
 
   const saved = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
+            accrual_method AS accrualMethod,
             created_at AS createdAt, updated_at AS updatedAt
      FROM fixed_costs
      WHERE id = ?`,

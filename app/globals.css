@@ -687,8 +687,8 @@ a {
   gap: 6px;
 }
 
-.income-form {
-  grid-template-columns: 72px 64px minmax(0, 1fr) 90px auto;
+.recurring-form {
+  grid-template-columns: 82px 90px minmax(0, 1fr) 90px auto;
 }
 
 .debt-form {
@@ -763,13 +763,13 @@ a {
   font-weight: 600;
 }
 
-.fixed-cost-column-headings:not(.income-column-headings) span:nth-child(3),
-.income-column-headings span:nth-child(4) {
+.fixed-cost-column-headings:not(.recurring-column-headings) span:nth-child(3),
+.recurring-column-headings span:nth-child(4) {
   text-align: right;
 }
 
-.income-column-headings,
-.fixed-cost-row.income-row {
+.recurring-column-headings,
+.fixed-cost-row.recurring-row {
   grid-template-columns: 60px 48px minmax(0, 1fr) 100px;
   gap: 10px;
 }
@@ -857,11 +857,11 @@ a {
   gap: 12px;
 }
 
-.income-edit-form {
-  grid-template-columns: 72px 72px minmax(0, 1fr) 96px;
+.recurring-edit-form {
+  grid-template-columns: 72px 90px minmax(0, 1fr) 96px;
 }
 
-.income-edit-form .fixed-cost-edit-actions {
+.recurring-edit-form .fixed-cost-edit-actions {
   grid-column: 1 / -1;
   justify-content: flex-end;
 }
@@ -1023,23 +1023,15 @@ a {
     gap: 6px;
   }
 
-  .fixed-cost-form:not(.debt-form):not(.income-form) > :nth-child(2) {
-    grid-column: 2 / 4;
+  .recurring-form {
+    grid-template-columns: 72px 80px minmax(0, 1fr) auto;
   }
 
-  .fixed-cost-form:not(.debt-form):not(.income-form) > :nth-child(3) {
-    grid-column: 1 / 3;
-  }
-
-  .income-form {
-    grid-template-columns: 72px 64px minmax(0, 1fr) auto;
-  }
-
-  .income-form > :nth-child(3) {
+  .recurring-form > :nth-child(3) {
     grid-column: 3 / 5;
   }
 
-  .income-form > :nth-child(4) {
+  .recurring-form > :nth-child(4) {
     grid-column: 1 / 4;
   }
 
@@ -1063,8 +1055,8 @@ a {
     gap: 8px;
   }
 
-  .income-column-headings,
-  .fixed-cost-row.income-row {
+  .recurring-column-headings,
+  .fixed-cost-row.recurring-row {
     grid-template-columns: 48px 46px minmax(0, 1fr) 92px;
     gap: 6px;
   }
@@ -1091,6 +1083,24 @@ a {
 
   .asset-history-state {
     min-height: 250px;
+  }
+}
+
+@media (min-width: 901px) and (max-width: 1100px) {
+  .recurring-edit-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .recurring-form {
+    grid-template-columns: 82px 90px minmax(0, 1fr) auto;
+  }
+
+  .recurring-form > :nth-child(3) {
+    grid-column: 3 / 5;
+  }
+
+  .recurring-form > :nth-child(4) {
+    grid-column: 1 / 4;
   }
 }
 

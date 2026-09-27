@@ -29,23 +29,29 @@ export default function FutureAssetChart() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let active = true;
+    let controller: AbortController | null = null;
 
     async function loadForecast() {
+      controller?.abort();
+      const currentController = new AbortController();
+      controller = currentController;
       try {
-        const response = await fetch(`/api/asset-forecast?days=${days}`, { cache: "no-store" });
+        const response = await fetch(`/api/asset-forecast?days=${days}`, {
+          cache: "no-store",
+          signal: currentController.signal,
+        });
         const data = (await response.json().catch(() => null)) as ForecastResult | null;
 
         if (!response.ok || !data || !validPoints(data.points)) {
           throw new Error(data?.error ?? "未来の資産推移を計算できませんでした。");
         }
 
-        if (active) {
+        if (!currentController.signal.aborted) {
           setForecast(data.points);
           setError("");
         }
       } catch (loadError) {
-        if (active) {
+        if (!currentController.signal.aborted) {
           setError(
             loadError instanceof Error
               ? loadError.message
@@ -53,7 +59,7 @@ export default function FutureAssetChart() {
           );
         }
       } finally {
-        if (active) {
+        if (!currentController.signal.aborted) {
           setIsLoading(false);
         }
       }
@@ -61,10 +67,12 @@ export default function FutureAssetChart() {
 
     void loadForecast();
     window.addEventListener("kakeibo:balances-updated", loadForecast);
+    window.addEventListener("kakeibo:recurring-items-updated", loadForecast);
 
     return () => {
-      active = false;
+      controller?.abort();
       window.removeEventListener("kakeibo:balances-updated", loadForecast);
+      window.removeEventListener("kakeibo:recurring-items-updated", loadForecast);
     };
   }, [days]);
 
