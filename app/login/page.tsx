@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import LoginForm from "./login-form";
+import ThemeSwitcher from "../components/theme-switcher";
 import { isAuthenticated } from "../lib/auth";
 
 export const metadata: Metadata = {
@@ -22,6 +23,9 @@ export default async function LoginPage() {
         <h1>kakeibo</h1>
         <p>個人の資産情報を表示するため、パスワードを入力してください。</p>
         <LoginForm />
+        <div className="login-appearance">
+          <ThemeSwitcher />
+        </div>
       </div>
     </main>
   );

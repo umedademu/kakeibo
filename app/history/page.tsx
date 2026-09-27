@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import AssetHistoryTable from "../components/asset-history-table";
 import { AssetPeriodLinks } from "../components/asset-period-switch";
 import LogoutButton from "../components/logout-button";
+import ThemeSwitcher from "../components/theme-switcher";
 import { parseAssetPeriod } from "../lib/asset-period";
 import { isAuthenticated } from "../lib/auth";
 
@@ -49,6 +50,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
         </section>
 
         <footer className="forecast-footer">
+          <ThemeSwitcher />
           <LogoutButton />
         </footer>
       </div>

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ThemeSwitcher from "../components/theme-switcher";
 
 export const metadata: Metadata = {
   title: "更新情報 | kakeibo",
@@ -7,6 +8,17 @@ export const metadata: Metadata = {
 };
 
 const updates = [
+  {
+    version: "v0.1.31",
+    date: "2026年9月28日",
+    dateTime: "2026-09-28",
+    title: "ダークモードに対応",
+    changes: [
+      "全画面に配色の切り替えを追加し、端末に合わせる・ライト・ダークから選べるようにしました。",
+      "選んだ配色をブラウザに保存し、次に開いたときも同じ設定を使用します。",
+      "グラフ、表、入力欄、エラー表示も、暗い画面で見やすい配色に調整しました。",
+    ],
+  },
   {
     version: "v0.1.30",
     date: "2026年9月4日",
@@ -338,10 +350,13 @@ export default function UpdatesPage() {
   return (
     <main className="updates-main">
       <div className="updates-container">
-        <Link className="back-link" href="/">
-          <span aria-hidden="true">←</span>
-          kakeiboに戻る
-        </Link>
+        <div className="updates-toolbar">
+          <Link className="back-link" href="/">
+            <span aria-hidden="true">←</span>
+            kakeiboに戻る
+          </Link>
+          <ThemeSwitcher />
+        </div>
 
         <header className="updates-header">
           <h1>更新情報</h1>

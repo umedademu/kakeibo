@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AssetPeriodLinks } from "../components/asset-period-switch";
 import ForecastTable from "../components/forecast-table";
 import LogoutButton from "../components/logout-button";
+import ThemeSwitcher from "../components/theme-switcher";
 import { parseAssetPeriod } from "../lib/asset-period";
 import { isAuthenticated } from "../lib/auth";
 
@@ -52,6 +53,7 @@ export default async function ForecastPage({ searchParams }: ForecastPageProps) 
         </section>
 
         <footer className="forecast-footer">
+          <ThemeSwitcher />
           <LogoutButton />
         </footer>
       </div>

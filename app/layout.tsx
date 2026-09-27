@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { themeInitializationScript } from "./lib/theme";
 import "./globals.css";
 
 const productionDomain = process.env.VERCEL_PROJECT_PRODUCTION_URL;
@@ -36,7 +37,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ja">
+    <html lang="ja" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitializationScript }} />
+      </head>
       <body>{children}</body>
     </html>
   );

@@ -5,6 +5,7 @@ import AppTabs from "../components/app-tabs";
 import AssetHistoryChart from "../components/asset-history-chart";
 import FutureAssetChart from "../components/future-asset-chart";
 import LogoutButton from "../components/logout-button";
+import ThemeSwitcher from "../components/theme-switcher";
 import { isAuthenticated } from "../lib/auth";
 
 export default async function DashboardLayout({
@@ -31,6 +32,7 @@ export default async function DashboardLayout({
               更新情報
               <span aria-hidden="true">→</span>
             </Link>
+            <ThemeSwitcher />
             <LogoutButton />
           </div>
         </section>
