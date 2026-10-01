@@ -590,7 +590,7 @@ const worker = {
     if (url.pathname === "/asset-history" && request.method === "GET") {
       const requestedDays = Number(url.searchParams.get("days"));
       const days =
-        Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 90
+        Number.isInteger(requestedDays) && requestedDays >= 1 && requestedDays <= 360
           ? requestedDays
           : 30;
       return json(await listAssetHistory(env, days));

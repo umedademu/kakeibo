@@ -109,3 +109,31 @@ test("認証なしでは固定費を読み書きできない", async () => {
     assert.equal(response.status, 401);
   }
 });
+
+test("過去30日・90日・180日・360日の境界を守り、5項目がそろった日だけ合計する", async (context) => {
+  context.mock.timers.enable({ apis: ["Date"], now: new Date("2026-09-30T16:00:00Z") });
+  const insert = database.prepare(
+    "INSERT INTO daily_balance_snapshots (balance_date, account_id, amount, recorded_at) VALUES (?, ?, ?, ?)",
+  );
+  const accounts = ["wallet", "paypay", "paypay_bank", "pachinko", "fx"];
+  const savedPoints = [];
+  for (let daysAgo = 360; daysAgo >= 0; daysAgo -= 1) {
+    const date = new Date("2026-10-01T00:00:00Z");
+    date.setUTCDate(date.getUTCDate() - daysAgo);
+    const balanceDate = date.toISOString().slice(0, 10);
+    for (const [index, account] of accounts.entries()) {
+      if (daysAgo === 1 && account === "pachinko") continue;
+      insert.run(balanceDate, account, (index + 1) * 100 + daysAgo, date.toISOString());
+    }
+    if (daysAgo !== 1) savedPoints.push({ daysAgo, date: balanceDate, total: 1500 + daysAgo * 5 });
+  }
+
+  for (const [query, days] of [["30", 30], ["90", 90], ["180", 180], ["360", 360], ["361", 30], ["0", 30], ["-1", 30], ["180.5", 30], [null, 30]]) {
+    const response = await request(`/asset-history${query === null ? "" : `?days=${query}`}`);
+    assert.equal(response.status, 200);
+    assert.deepEqual(
+      await response.json(),
+      savedPoints.filter((point) => point.daysAgo < days).map(({ date, total }) => ({ date, total })),
+    );
+  }
+});

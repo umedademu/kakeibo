@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createAssetForecast } from "../app/lib/asset-forecast.ts";
+import { parseAssetPeriod } from "../app/lib/asset-period.ts";
 
 const balances = [{ amount: 100000 }];
 const item = (amount, paymentDay, accrualMethod) => ({ amount, paymentDay, accrualMethod });
@@ -50,6 +51,26 @@ test("日本時間の当日分は再計上せず、90日間の各月の支払日
   assert.deepEqual(forecast.points.filter((point) => point.dailyFixedCost).map((point) => point.date), ["2026-02-28", "2026-03-31", "2026-04-30"]);
   assert.equal(forecast.points.at(-1).total, 97000);
 });
+
+for (const [days, lastDate, paymentCount] of [[180, "2028-03-28", 5], [360, "2028-09-24", 11]]) {
+  test(`${days}日を選ぶと、年とうるう年の2月をまたいで収入と固定費を反映する`, () => {
+    const forecast = createAssetForecast(
+      balances,
+      [item(1000, 31, "lump_sum")],
+      [item(2000, 31, "lump_sum")],
+      new Date("2027-09-30T00:00:00+09:00"),
+      parseAssetPeriod(String(days)),
+    );
+    assert.equal(forecast.points.length, days);
+    assert.equal(forecast.points[0].date, "2027-10-01");
+    assert.equal(forecast.points.at(-1).date, lastDate);
+    assert.equal(pointAt(forecast, "2028-02-28").dailyFixedCost, 0);
+    assert.equal(pointAt(forecast, "2028-02-29").dailyFixedCost, 1000);
+    assert.equal(pointAt(forecast, "2028-02-29").dailyIncome, 2000);
+    assert.equal(forecast.points.reduce((sum, point) => sum + point.dailyFixedCost, 0), paymentCount * 1000);
+    assert.equal(forecast.points.at(-1).total, 100000 + paymentCount * 1000);
+  });
+}
 
 test("反映方法のない旧固定費は日割りを引き継ぐ", () => {
   const forecast = createAssetForecast(balances, [{ amount: 30000, paymentDay: 15 }], [], new Date("2026-09-01T00:00:00+09:00"));
