@@ -92,6 +92,34 @@ test("不正な反映方法・金額・日付は保存せず、既存の内容�
   assert.equal((await request("/fixed-costs/999", "PUT", validCost)).status, 404);
 });
 
+test("一括の固定費は今月分の支払済を記録・解除でき、登録済みの固定費は未払から始める", async () => {
+  const [legacy] = await (await request("/fixed-costs")).json();
+  assert.equal(legacy.paidMonth, null);
+  const created = await (await request("/fixed-costs", "POST", validCost)).json();
+  assert.equal(created.paidMonth, null);
+
+  const paid = await request(`/fixed-costs/${created.id}/paid`, "PUT", { paidMonth: "2026-10" });
+  assert.equal(paid.status, 200);
+  assert.equal((await paid.json()).paidMonth, "2026-10");
+  const edited = await (await request(`/fixed-costs/${created.id}`, "PUT", { ...validCost, amount: 2000 })).json();
+  assert.equal(edited.paidMonth, "2026-10");
+
+  const unpaid = await (await request(`/fixed-costs/${created.id}/paid`, "PUT", { paidMonth: null })).json();
+  assert.equal(unpaid.paidMonth, null);
+  assert.equal(unpaid.amount, 2000);
+});
+
+test("日割り・存在しない固定費・不正な月は支払済にしない", async () => {
+  assert.equal((await request("/fixed-costs/1/paid", "PUT", { paidMonth: "2026-10" })).status, 400);
+  assert.equal((await request("/fixed-costs/999/paid", "PUT", { paidMonth: "2026-10" })).status, 404);
+  const created = await (await request("/fixed-costs", "POST", validCost)).json();
+  for (const paidMonth of ["2026-13", "2026-1", "2026/10", 202610, undefined, ""]) {
+    assert.equal((await request(`/fixed-costs/${created.id}/paid`, "PUT", { paidMonth })).status, 400);
+  }
+  const saved = await (await request("/fixed-costs")).json();
+  assert.ok(saved.every((item) => item.paidMonth === null));
+});
+
 test("収入の反映方法と借金の登録を維持する", async () => {
   assert.equal((await request("/incomes", "POST", validCost)).status, 201);
   assert.equal((await request("/incomes", "POST", { name: "収入", amount: 1000, paymentDay: 15 })).status, 400);
@@ -100,8 +128,8 @@ test("収入の反映方法と借金の登録を維持する", async () => {
 });
 
 test("認証なしでは固定費を読み書きできない", async () => {
-  for (const method of ["GET", "POST", "PUT"]) {
-    const url = `https://test.invalid/fixed-costs${method === "PUT" ? "/1" : ""}`;
+  for (const [method, path] of [["GET", ""], ["POST", ""], ["PUT", "/1"], ["PUT", "/1/paid"]]) {
+    const url = `https://test.invalid/fixed-costs${path}`;
     const response = await worker.fetch(new Request(url, {
       method,
       body: method === "GET" ? undefined : JSON.stringify(validCost),

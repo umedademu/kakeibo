@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { currentDateInJapan } from "../lib/asset-forecast";
 
 type AccrualMethod = "lump_sum" | "daily";
 
@@ -10,6 +11,7 @@ type FixedCost = {
   amount: number;
   paymentDay?: number;
   accrualMethod?: AccrualMethod;
+  paidMonth?: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -99,6 +101,7 @@ function values(draft: Draft, hasDay: boolean) {
 export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostManagerProps) {
   const settings = managerSettings[kind];
   const hasDay = settings.dayLabel !== null;
+  const showsPaid = kind === "fixed-costs";
   const [fixedCosts, setFixedCosts] = useState<FixedCost[]>([]);
   const [newDraft, setNewDraft] = useState<Draft>(emptyDraft);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -170,6 +173,42 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       if (hasDay) window.dispatchEvent(new Event("kakeibo:recurring-items-updated"));
     } catch {
       setMessage(`${settings.subject}を保存できませんでした。時間をおいて再度お試しください。`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function togglePaid(item: FixedCost, paid: boolean) {
+    // 支払済は「今月分を払ったか」だけを記録し、月が変わると自動で未払に戻ります。
+    const currentMonth = currentDateInJapan().slice(0, 7);
+    const paidMonth = paid ? currentMonth : null;
+    const previous = item.paidMonth ?? null;
+    const replacePaidMonth = (value: string | null) =>
+      setFixedCosts((current) =>
+        current.map((cost) => (cost.id === item.id ? { ...cost, paidMonth: value } : cost)),
+      );
+
+    replacePaidMonth(paidMonth);
+    setSaving(true);
+    setMessage("");
+    try {
+      const response = await fetch(`${settings.apiPath}/${item.id}/paid`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ paidMonth }),
+      });
+      if (!response.ok) {
+        throw new Error();
+      }
+
+      const saved = (await response.json()) as FixedCost;
+      setFixedCosts((current) =>
+        sorted(current.map((cost) => (cost.id === saved.id ? saved : cost)), hasDay),
+      );
+      window.dispatchEvent(new Event("kakeibo:recurring-items-updated"));
+    } catch {
+      replacePaidMonth(previous);
+      setMessage("支払状況を保存できませんでした。時間をおいて再度お試しください。");
     } finally {
       setSaving(false);
     }
@@ -301,12 +340,13 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       </form>
 
       <div
-        className={`fixed-cost-column-headings${hasDay ? " recurring-column-headings" : " debt-column-headings"}`}
+        className={`fixed-cost-column-headings${hasDay ? " recurring-column-headings" : " debt-column-headings"}${showsPaid ? " paid-column-headings" : ""}`}
       >
         {hasDay ? <span>{settings.dayLabel}</span> : null}
         {hasDay ? <span>反映</span> : null}
         <span>摘要</span>
         <span>金額</span>
+        {showsPaid ? <span>支払済</span> : null}
       </div>
 
       {message ? <p className="fixed-cost-message" role="status">{message}</p> : null}
@@ -318,7 +358,10 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
       ) : (
         <ul className="fixed-cost-list">
           {fixedCosts.map((item) => (
-            <li key={item.id}>
+            <li
+              className={showsPaid && editingId !== item.id ? "fixed-cost-paid-item" : undefined}
+              key={item.id}
+            >
               {editingId === item.id ? (
                 <form
                   className={`fixed-cost-edit-form${hasDay ? " recurring-edit-form" : " debt-edit-form"}`}
@@ -419,6 +462,22 @@ export default function FixedCostManager({ kind = "fixed-costs" }: FixedCostMana
                   <strong>{item.amount.toLocaleString("ja-JP")}円</strong>
                 </button>
               )}
+              {showsPaid && editingId !== item.id ? (
+                item.accrualMethod === "lump_sum" ? (
+                  <input
+                    aria-label={`「${item.name}」の今月分を支払済にする`}
+                    checked={item.paidMonth === currentDateInJapan().slice(0, 7)}
+                    className="fixed-cost-paid-check"
+                    disabled={saving || editingId !== null}
+                    onChange={(event) => togglePaid(item, event.target.checked)}
+                    type="checkbox"
+                  />
+                ) : (
+                  <span className="fixed-cost-paid-none" title="日割りの固定費は支払済の対象外です">
+                    －
+                  </span>
+                )
+              ) : null}
             </li>
           ))}
         </ul>

@@ -19,9 +19,16 @@ type RecurringForecastItem = {
   amount: number;
   paymentDay: number;
   accrualMethod: "lump_sum" | "daily";
+  paidMonth: string | null;
 };
 
-function currentDateInJapan(now: Date) {
+const monthPattern = /^\d{4}-(0[1-9]|1[0-2])$/;
+
+export function isPaidMonth(value: unknown): value is string {
+  return typeof value === "string" && monthPattern.test(value);
+}
+
+export function currentDateInJapan(now = new Date()) {
   const parts = new Intl.DateTimeFormat("en-US", {
     timeZone: "Asia/Tokyo",
     year: "numeric",
@@ -70,10 +77,11 @@ function readRecurringItems(items: unknown, fallbackMethod?: "daily") {
       return null;
     }
 
-    const { amount, paymentDay, accrualMethod } = item as {
+    const { amount, paymentDay, accrualMethod, paidMonth } = item as {
       amount?: unknown;
       paymentDay?: unknown;
       accrualMethod?: unknown;
+      paidMonth?: unknown;
     };
     // 更新前の固定費は、従来どおり日割りとして扱います。
     const method = accrualMethod === undefined ? fallbackMethod : accrualMethod;
@@ -83,7 +91,8 @@ function readRecurringItems(items: unknown, fallbackMethod?: "daily") {
       !Number.isInteger(paymentDay) ||
       (paymentDay as number) < 1 ||
       (paymentDay as number) > 31 ||
-      (method !== "lump_sum" && method !== "daily")
+      (method !== "lump_sum" && method !== "daily") ||
+      (paidMonth !== undefined && paidMonth !== null && !isPaidMonth(paidMonth))
     ) {
       return null;
     }
@@ -92,16 +101,27 @@ function readRecurringItems(items: unknown, fallbackMethod?: "daily") {
       amount: amount as number,
       paymentDay: paymentDay as number,
       accrualMethod: method,
+      paidMonth: isPaidMonth(paidMonth) ? paidMonth : null,
     });
   }
 
   return recurringItems;
 }
 
-function amountForDay(items: RecurringForecastItem[], day: number, monthDays: number) {
+function amountForDay(
+  items: RecurringForecastItem[],
+  month: string,
+  day: number,
+  monthDays: number,
+) {
   return items.reduce((total, item) => {
     if (item.accrualMethod === "daily") {
       return total + item.amount / monthDays;
+    }
+
+    // 支払済にした月の分は、支払日を迎えても重ねて差し引きません。
+    if (item.paidMonth === month) {
+      return total;
     }
 
     const effectivePaymentDay = Math.min(item.paymentDay, monthDays);
@@ -128,6 +148,19 @@ export function createAssetForecast(
   const monthlyFixedCost = fixedCostItems.reduce((total, item) => total + item.amount, 0);
   const monthlyIncome = incomeItems.reduce((total, item) => total + item.amount, 0);
   const baseDate = currentDateInJapan(now);
+  const baseMonth = baseDate.slice(0, 7);
+  const baseDay = Number(baseDate.slice(8));
+  const baseMonthDays = daysInMonth(new Date(`${baseDate}T00:00:00Z`));
+  // 今月の支払日を迎えても未払の一括固定費は、まだ残高から減っていないため翌日に差し引きます。
+  const overdueFixedCost = fixedCostItems.reduce(
+    (total, item) =>
+      item.accrualMethod === "lump_sum" &&
+      item.paidMonth !== baseMonth &&
+      Math.min(item.paymentDay, baseMonthDays) <= baseDay
+        ? total + item.amount
+        : total,
+    0,
+  );
   const points: AssetForecastPoint[] = [];
   let runningTotal = currentTotal;
 
@@ -135,8 +168,11 @@ export function createAssetForecast(
     const forecastDate = addDays(baseDate, day);
     const monthDays = daysInMonth(forecastDate);
     const dayOfMonth = forecastDate.getUTCDate();
-    const dailyFixedCost = amountForDay(fixedCostItems, dayOfMonth, monthDays);
-    const dailyIncome = amountForDay(incomeItems, dayOfMonth, monthDays);
+    const forecastMonth = forecastDate.toISOString().slice(0, 7);
+    const dailyFixedCost =
+      amountForDay(fixedCostItems, forecastMonth, dayOfMonth, monthDays) +
+      (day === 1 ? overdueFixedCost : 0);
+    const dailyIncome = amountForDay(incomeItems, forecastMonth, dayOfMonth, monthDays);
     runningTotal += dailyIncome - dailyFixedCost;
     points.push({
       date: forecastDate.toISOString().slice(0, 10),

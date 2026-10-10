@@ -783,6 +783,40 @@ a {
   text-align: right;
 }
 
+.recurring-column-headings.paid-column-headings {
+  grid-template-columns: 60px 48px minmax(0, 1fr) 100px 44px;
+}
+
+.paid-column-headings span:nth-child(5) {
+  text-align: center;
+}
+
+.fixed-cost-list > li.fixed-cost-paid-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.fixed-cost-paid-check {
+  justify-self: center;
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  accent-color: var(--foreground);
+  cursor: pointer;
+}
+
+.fixed-cost-paid-check:disabled {
+  cursor: wait;
+}
+
+.fixed-cost-paid-none {
+  justify-self: center;
+  color: rgb(var(--foreground-rgb) / 40%);
+  font-size: 0.85rem;
+}
+
 .fixed-cost-message,
 .fixed-cost-empty {
   margin: -10px 0 0;
@@ -1058,6 +1092,15 @@ a {
   .recurring-column-headings,
   .fixed-cost-row.recurring-row {
     grid-template-columns: 48px 46px minmax(0, 1fr) 92px;
+    gap: 6px;
+  }
+
+  .recurring-column-headings.paid-column-headings {
+    grid-template-columns: 48px 46px minmax(0, 1fr) 92px 40px;
+  }
+
+  .fixed-cost-list > li.fixed-cost-paid-item {
+    grid-template-columns: minmax(0, 1fr) 40px;
     gap: 6px;
   }
 

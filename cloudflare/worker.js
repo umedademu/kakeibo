@@ -252,7 +252,7 @@ function readDebt(body) {
 async function listFixedCosts(env) {
   const result = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
-            accrual_method AS accrualMethod,
+            accrual_method AS accrualMethod, paid_month AS paidMonth,
             created_at AS createdAt, updated_at AS updatedAt
      FROM fixed_costs
      ORDER BY payment_day, id`,
@@ -281,6 +281,7 @@ async function createFixedCost(request, env) {
     {
       id: result.meta.last_row_id,
       ...fixedCost,
+      paidMonth: null,
       createdAt: now,
       updatedAt: now,
     },
@@ -310,7 +311,7 @@ async function updateFixedCost(request, env, id) {
 
   const saved = await env.DB.prepare(
     `SELECT id, name, amount, payment_day AS paymentDay,
-            accrual_method AS accrualMethod,
+            accrual_method AS accrualMethod, paid_month AS paidMonth,
             created_at AS createdAt, updated_at AS updatedAt
      FROM fixed_costs
      WHERE id = ?`,
@@ -319,6 +320,41 @@ async function updateFixedCost(request, env, id) {
     .first();
 
   return json(saved);
+}
+
+async function updateFixedCostPaidMonth(request, env, id) {
+  const body = await request.json().catch(() => null);
+  const paidMonth = body?.paidMonth;
+  if (paidMonth !== null && (typeof paidMonth !== "string" || !/^\d{4}-(0[1-9]|1[0-2])$/.test(paidMonth))) {
+    return json({ error: "支払済の月が正しくありません。" }, 400);
+  }
+
+  const current = await env.DB.prepare("SELECT accrual_method AS accrualMethod FROM fixed_costs WHERE id = ?")
+    .bind(id)
+    .first();
+  if (!current) {
+    return json({ error: "固定費が見つかりません。" }, 404);
+  }
+  // 日割りは毎日少しずつ減る扱いのため、支払済の記録は一括の固定費だけに付けます。
+  if (paidMonth !== null && current.accrualMethod !== "lump_sum") {
+    return json({ error: "支払済にできるのは一括の固定費だけです。" }, 400);
+  }
+
+  await env.DB.prepare("UPDATE fixed_costs SET paid_month = ?, updated_at = ? WHERE id = ?")
+    .bind(paidMonth, new Date().toISOString(), id)
+    .run();
+
+  return json(
+    await env.DB.prepare(
+      `SELECT id, name, amount, payment_day AS paymentDay,
+              accrual_method AS accrualMethod, paid_month AS paidMonth,
+              created_at AS createdAt, updated_at AS updatedAt
+       FROM fixed_costs
+       WHERE id = ?`,
+    )
+      .bind(id)
+      .first(),
+  );
 }
 
 async function listIncomes(env) {
@@ -551,6 +587,15 @@ const worker = {
         return json({ error: "固定費が見つかりません。" }, 404);
       }
       return updateFixedCost(request, env, id);
+    }
+
+    const fixedCostPaidPath = url.pathname.match(/^\/fixed-costs\/(\d+)\/paid$/);
+    if (fixedCostPaidPath && request.method === "PUT") {
+      const id = Number(fixedCostPaidPath[1]);
+      if (!Number.isSafeInteger(id) || id < 1) {
+        return json({ error: "固定費が見つかりません。" }, 404);
+      }
+      return updateFixedCostPaidMonth(request, env, id);
     }
 
     if (url.pathname === "/incomes" && request.method === "GET") {
