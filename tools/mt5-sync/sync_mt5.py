@@ -15,6 +15,10 @@ from urllib.request import Request, urlopen
 import MetaTrader5 as mt5
 
 
+class SyncSkipped(RuntimeError):
+    """本番口座を確認できない場合は、保存済みの残高を維持する。"""
+
+
 def parse_args() -> argparse.Namespace:
     local_app_data = Path(os.environ.get("LOCALAPPDATA", Path.home()))
     default_log = local_app_data / "kakeibo" / "mt5-sync.log"
@@ -88,6 +92,8 @@ def read_mt5_values(terminal_path: Path) -> tuple[float, float, str, datetime]:
         account = mt5.account_info()
         if account is None:
             raise RuntimeError(f"ログイン中の口座情報を取得できません: {mt5.last_error()}")
+        if getattr(account, "trade_mode", None) != mt5.ACCOUNT_TRADE_MODE_REAL:
+            raise SyncSkipped("本番口座ではないため、残高の更新を見送りました。")
         if account.currency != "USD":
             raise RuntimeError(f"口座通貨がUSDではありません: {account.currency}")
 
@@ -185,6 +191,15 @@ def main() -> int:
                     "currency": "USD",
                     "rateSymbol": rate_symbol,
                 },
+                ensure_ascii=False,
+            )
+        )
+        return 0
+    except SyncSkipped as reason:
+        logging.info("%s", reason)
+        print(
+            json.dumps(
+                {"ok": True, "sent": False, "skipped": True, "reason": str(reason)},
                 ensure_ascii=False,
             )
         )
