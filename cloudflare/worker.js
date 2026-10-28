@@ -142,6 +142,8 @@ async function listBalances(env) {
 async function syncFxEquity(request, env) {
   const body = await request.json().catch(() => null);
   const equityUsd = body?.equityUsd;
+  // ハイリキの額がない送信は、MT5の額だけで換算する。
+  const hyperliquidEquityUsd = body?.hyperliquidEquityUsd ?? null;
   const usdJpyRate = body?.usdJpyRate;
   const rateSymbol = body?.rateSymbol;
   const sourceRecordedAt = body?.sourceRecordedAt;
@@ -150,6 +152,8 @@ async function syncFxEquity(request, env) {
   if (
     !Number.isFinite(equityUsd) ||
     equityUsd < 0 ||
+    (hyperliquidEquityUsd !== null &&
+      (!Number.isFinite(hyperliquidEquityUsd) || hyperliquidEquityUsd < 0)) ||
     !Number.isFinite(usdJpyRate) ||
     usdJpyRate <= 0 ||
     typeof rateSymbol !== "string" ||
@@ -163,7 +167,7 @@ async function syncFxEquity(request, env) {
     return json({ error: "FX口座の情報が正しくありません。" }, 400);
   }
 
-  const amount = Math.round(equityUsd * usdJpyRate);
+  const amount = Math.round((equityUsd + (hyperliquidEquityUsd ?? 0)) * usdJpyRate);
   if (!Number.isSafeInteger(amount) || amount < 0) {
     return json({ error: "円換算後の残高が正しくありません。" }, 400);
   }
@@ -180,10 +184,11 @@ async function syncFxEquity(request, env) {
     ).bind(amount, receivedAt, "fx"),
     env.DB.prepare(
       `INSERT INTO fx_equity_sync_records
-       (equity_usd, usd_jpy_rate, equity_jpy, rate_symbol, source_recorded_at, rate_recorded_at, received_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+       (equity_usd, hyperliquid_equity_usd, usd_jpy_rate, equity_jpy, rate_symbol, source_recorded_at, rate_recorded_at, received_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     ).bind(
       equityUsd,
+      hyperliquidEquityUsd,
       usdJpyRate,
       amount,
       rateSymbol,

@@ -33,6 +33,11 @@ beforeEach(() => {
           },
         };
       },
+      async batch(statements) {
+        const results = [];
+        for (const statement of statements) results.push(await statement.run());
+        return results;
+      },
     },
   };
 });
@@ -164,4 +169,54 @@ test("過去30日・90日・180日・360日の境界を守り、5項目がそろ
       savedPoints.filter((point) => point.daysAgo < days).map(({ date, total }) => ({ date, total })),
     );
   }
+});
+
+const fxSync = {
+  equityUsd: 300,
+  usdJpyRate: 150,
+  rateSymbol: "USDJPYm",
+  sourceRecordedAt: "2026-10-28T12:00:00.000Z",
+  rateRecordedAt: "2026-10-28T11:59:58.000Z",
+};
+
+function savedFx() {
+  return {
+    balance: database.prepare("SELECT amount FROM current_balances WHERE account_id = 'fx'").get().amount,
+    records: database.prepare(
+      "SELECT equity_usd AS exness, hyperliquid_equity_usd AS hyperliquid, equity_jpy AS yen FROM fx_equity_sync_records ORDER BY id",
+    ).all().map((row) => ({ ...row })),
+  };
+}
+
+test("FX口座はMT5とハイリキの合計を円換算し、元のドル建ての額を分けて保存する", async () => {
+  const response = await request("/sync/fx", "POST", { ...fxSync, hyperliquidEquityUsd: 60.5 });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).amount, 54075);
+  assert.deepEqual(savedFx(), {
+    balance: 54075,
+    records: [{ exness: 300, hyperliquid: 60.5, yen: 54075 }],
+  });
+});
+
+test("ハイリキの額がない送信はMT5の額だけで換算し、ハイリキの欄は空にする", async () => {
+  for (const body of [fxSync, { ...fxSync, hyperliquidEquityUsd: null }]) {
+    const response = await request("/sync/fx", "POST", body);
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).amount, 45000);
+  }
+  const zero = await request("/sync/fx", "POST", { ...fxSync, hyperliquidEquityUsd: 0 });
+  assert.equal((await zero.json()).amount, 45000);
+  assert.deepEqual(savedFx().records.map((record) => record.hyperliquid), [null, null, 0]);
+});
+
+test("ハイリキの額が正しくない送信は保存せず、FX口座の金額を維持する", async () => {
+  await request("/sync/fx", "POST", { ...fxSync, hyperliquidEquityUsd: 60 });
+  for (const hyperliquidEquityUsd of [-1, "60", {}, true]) {
+    const response = await request("/sync/fx", "POST", { ...fxSync, hyperliquidEquityUsd });
+    assert.equal(response.status, 400);
+  }
+  assert.deepEqual(savedFx(), {
+    balance: 54000,
+    records: [{ exness: 300, hyperliquid: 60, yen: 54000 }],
+  });
 });
