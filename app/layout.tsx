@@ -10,6 +10,9 @@ export const metadata: Metadata = {
   ),
   title: "kakeibo",
   description: "個人的な家計簿アプリ",
+  appleWebApp: {
+    title: "kakeibo",
+  },
   openGraph: {
     title: "kakeibo",
     description: "個人的な家計簿アプリ",
