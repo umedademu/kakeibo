@@ -267,41 +267,73 @@ class SyncBitflyerTests(unittest.TestCase):
         self.opened = opened
         return result
 
-    def test_adds_collateral_and_open_pnl_in_yen(self):
-        result, body, _, send = self.sync_with(
-            [fake_bitflyer_response({"collateral": 100000, "open_position_pnl": -234.5,
-                                     "require_collateral": 0, "keep_rate": 0})],
-        )
+    def test_adds_collateral_open_pnl_and_spot_yen(self):
+        result, body, _, send = self.sync_with([
+            fake_bitflyer_response({"collateral": 100000, "open_position_pnl": -234.5,
+                                    "require_collateral": 0, "keep_rate": 0}),
+            fake_bitflyer_response([
+                {"currency_code": "JPY", "amount": 150000.0, "available": 150000.0},
+                {"currency_code": "BTC", "amount": 0.0, "available": 0.0},
+                {"currency_code": "ETH", "amount": 1e-08, "available": 1e-08},
+            ]),
+        ])
         self.assertEqual(result, 0)
         self.assertTrue(body["bitflyer"])
         send.assert_called_once()
         self.assertEqual(send.call_args.args[2], 2500.0)
         self.assertIsNone(send.call_args.args[3])
-        self.assertAlmostEqual(send.call_args.args[7], 99765.5)
+        # 日本円以外の現物（ETH）は数えない。
+        self.assertAlmostEqual(send.call_args.args[7], 249765.5)
 
-    def test_request_is_signed_read_only_and_keeps_keys_out_of_output(self):
+    def test_requests_are_signed_read_only_and_keep_keys_out_of_output(self):
         with patch.object(sync_mt5.time, "time", return_value=1_792_000_000.5):
-            result, body, _, _ = self.sync_with(
-                [fake_bitflyer_response({"collateral": 1, "open_position_pnl": 0})],
-            )
-        request = self.opened.call_args.args[0]
-        self.assertEqual(request.get_method(), "GET")
-        self.assertEqual(request.full_url, "https://api.bitflyer.com/v1/me/getcollateral")
-        expected = sync_mt5.hmac.new(
-            b"test-secret==", b"1792000000.5GET/v1/me/getcollateral", sync_mt5.hashlib.sha256,
-        ).hexdigest()
-        self.assertEqual(request.get_header("Access-sign"), expected)
-        self.assertEqual(request.get_header("Access-key"), "test-key")
+            result, body, _, _ = self.sync_with([
+                fake_bitflyer_response({"collateral": 1, "open_position_pnl": 0}),
+                fake_bitflyer_response([]),
+            ])
+        self.assertEqual(result, 0)
+        requests = [call.args[0] for call in self.opened.call_args_list]
+        self.assertEqual([request.full_url for request in requests], [
+            "https://api.bitflyer.com/v1/me/getcollateral",
+            "https://api.bitflyer.com/v1/me/getbalance",
+        ])
+        for request in requests:
+            path = request.full_url.removeprefix("https://api.bitflyer.com").encode("utf-8")
+            expected = sync_mt5.hmac.new(
+                b"test-secret==", b"1792000000.5GET" + path, sync_mt5.hashlib.sha256,
+            ).hexdigest()
+            self.assertEqual(request.get_method(), "GET")
+            self.assertEqual(request.get_header("Access-sign"), expected)
+            self.assertEqual(request.get_header("Access-key"), "test-key")
         self.assertNotIn("test-secret", json.dumps(body))
 
     def test_broken_or_negative_answers_never_send(self):
-        for answer in ({"collateral": "abc", "open_position_pnl": 0}, {"collateral": 100},
-                       {"collateral": 100, "open_position_pnl": -200}, ["x"]):
-            with self.subTest(answer=answer):
-                result, body, _, send = self.sync_with([fake_bitflyer_response(answer)])
+        good_balance = [{"currency_code": "JPY", "amount": 0}]
+        for collateral, balance in (
+            ({"collateral": "abc", "open_position_pnl": 0}, good_balance),
+            ({"collateral": 100}, good_balance),
+            ({"collateral": 100, "open_position_pnl": -200}, good_balance),
+            (["x"], good_balance),
+            ({"collateral": 100, "open_position_pnl": 0}, {"error": "x"}),
+            ({"collateral": 100, "open_position_pnl": 0}, [{"currency_code": "JPY"}]),
+            ({"collateral": 100, "open_position_pnl": 0}, [{"currency_code": "JPY", "amount": "abc"}]),
+        ):
+            with self.subTest(collateral=collateral, balance=balance):
+                result, body, _, send = self.sync_with([
+                    fake_bitflyer_response(collateral), fake_bitflyer_response(balance),
+                ])
                 self.assertEqual(result, 1)
                 self.assertFalse(body["ok"])
                 send.assert_not_called()
+
+    def test_spot_failure_after_collateral_never_sends(self):
+        error = sync_mt5.HTTPError(sync_mt5.BITFLYER_URL, 500, "Error", {}, None)
+        result, body, _, send = self.sync_with([
+            fake_bitflyer_response({"collateral": 100, "open_position_pnl": 0}), error,
+        ])
+        self.assertEqual(result, 1)
+        send.assert_not_called()
+        self.assertEqual(self.opened.call_count, 2)
 
     def test_rate_limit_skips_without_retry(self):
         error = sync_mt5.HTTPError(sync_mt5.BITFLYER_URL, 429, "Too Many", {}, None)

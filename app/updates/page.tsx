@@ -9,6 +9,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.39",
+    date: "2026年11月4日",
+    dateTime: "2026-11-04",
+    title: "bitFlyerの現物の日本円もFX口座に追加",
+    changes: [
+      "FX口座に足すbitFlyerの額へ、証拠金に移していない現物の口座の日本円も加えました。",
+      "日本円以外の現物（ビットコインなど）は数えません。",
+      "現物の残高を読めなかった回も、証拠金と同じく更新を見送り、表示中の金額を維持します。",
+    ],
+  },
+  {
     version: "v0.1.38",
     date: "2026年11月4日",
     dateTime: "2026-11-04",

@@ -27,6 +27,7 @@ HYPERLIQUID_SEPARATE_KINDS = {"default", "disabled"}
 HYPERLIQUID_ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
 BITFLYER_URL = "https://api.bitflyer.com"
 BITFLYER_COLLATERAL_PATH = "/v1/me/getcollateral"
+BITFLYER_BALANCE_PATH = "/v1/me/getbalance"
 # bfbotのキーのファイルで、まだキーを貼っていない時に残っている文字
 BITFLYER_PLACEHOLDER_MARK = "ここに"
 
@@ -225,16 +226,47 @@ def load_bitflyer_keys(path: Path) -> tuple[str, str]:
 
 
 def read_bitflyer_equity(key_file: Path) -> float:
-    """証拠金に、持ち高の含み損益を足した円の額を返す。読むだけで、注文や出金はしない。"""
+    """証拠金と含み損益に、現物の口座の日本円を足した円の額を返す。読むだけで、注文や出金はしない。"""
     key, secret = load_bitflyer_keys(key_file)
+
+    collateral = get_bitflyer(BITFLYER_COLLATERAL_PATH, key, secret)
+    try:
+        equity_jpy = float(collateral["collateral"]) + float(collateral["open_position_pnl"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("bitFlyerの証拠金を読み取れません。") from error
+
+    # 証拠金に移していない現物の口座の日本円は、証拠金とは別に数える。
+    balances = get_bitflyer(BITFLYER_BALANCE_PATH, key, secret)
+    if not isinstance(balances, list):
+        raise RuntimeError("bitFlyerの現物の残高を読み取れません。")
+    has_other_coins = False
+    for balance in balances:
+        try:
+            code = balance["currency_code"]
+            amount = float(balance["amount"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise RuntimeError("bitFlyerの現物の残高を読み取れません。") from error
+        if code == "JPY":
+            equity_jpy += amount
+        elif amount != 0:
+            has_other_coins = True
+    if has_other_coins:
+        logging.info("bitFlyerの日本円以外の現物は数えていません。")
+
+    if not math.isfinite(equity_jpy) or equity_jpy < 0:
+        raise RuntimeError("bitFlyerの残高が正しくありません。")
+    return equity_jpy
+
+
+def get_bitflyer(path: str, key: str, secret: str) -> object:
     timestamp = str(time.time())
     sign = hmac.new(
         secret.encode("utf-8"),
-        (timestamp + "GET" + BITFLYER_COLLATERAL_PATH).encode("utf-8"),
+        (timestamp + "GET" + path).encode("utf-8"),
         hashlib.sha256,
     ).hexdigest()
     request = Request(
-        BITFLYER_URL + BITFLYER_COLLATERAL_PATH,
+        BITFLYER_URL + path,
         method="GET",
         headers={
             "ACCESS-KEY": key,
@@ -245,7 +277,7 @@ def read_bitflyer_equity(key_file: Path) -> float:
     )
     try:
         with urlopen(request, timeout=15) as response:
-            answer = json.loads(response.read().decode("utf-8"))
+            return json.loads(response.read().decode("utf-8"))
     except HTTPError as error:
         if error.code == 429:
             # 同じパソコンのBOTと問い合わせの上限を分け合っているため、やり直さずに次の回を待つ。
@@ -255,14 +287,6 @@ def read_bitflyer_equity(key_file: Path) -> float:
         raise RuntimeError("bitFlyerへ接続できません。") from error
     except ValueError as error:
         raise RuntimeError("bitFlyerの応答を読み取れません。") from error
-
-    try:
-        equity_jpy = float(answer["collateral"]) + float(answer["open_position_pnl"])
-    except (KeyError, TypeError, ValueError) as error:
-        raise RuntimeError("bitFlyerの証拠金を読み取れません。") from error
-    if not math.isfinite(equity_jpy) or equity_jpy < 0:
-        raise RuntimeError("bitFlyerの証拠金が正しくありません。")
-    return equity_jpy
 
 
 def send_equity(
