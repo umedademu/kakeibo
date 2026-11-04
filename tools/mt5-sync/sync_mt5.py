@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import hmac
 import json
 import logging
 from logging.handlers import RotatingFileHandler
@@ -9,6 +11,7 @@ import os
 from pathlib import Path
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
@@ -22,6 +25,10 @@ HYPERLIQUID_UNIFIED_KINDS = {"unifiedAccount", "portfolioMargin"}
 # 現物のUSDCと、無期限先物の口座の額が別々になっている口座の種類
 HYPERLIQUID_SEPARATE_KINDS = {"default", "disabled"}
 HYPERLIQUID_ADDRESS = re.compile(r"0x[0-9a-fA-F]{40}")
+BITFLYER_URL = "https://api.bitflyer.com"
+BITFLYER_COLLATERAL_PATH = "/v1/me/getcollateral"
+# bfbotのキーのファイルで、まだキーを貼っていない時に残っている文字
+BITFLYER_PLACEHOLDER_MARK = "ここに"
 
 
 class SyncSkipped(RuntimeError):
@@ -193,6 +200,71 @@ def read_hyperliquid_equity(address: str) -> float:
     return equity_usd
 
 
+def load_bitflyer_keys(path: Path) -> tuple[str, str]:
+    """bfbotと同じ書き方（API_KEY=とAPI_SECRET=の2行）のファイルからキーを読む。値は記録しない。"""
+    if not path.is_file():
+        raise RuntimeError("bitFlyerのキーのファイルが見つかりません。")
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        # シークレットの末尾の=を残すため、最初の=だけで分ける。
+        name, value = line.split("=", 1)
+        values[name.strip()] = value.strip()
+    key = values.get("API_KEY", "")
+    secret = values.get("API_SECRET", "")
+    if (
+        not key
+        or not secret
+        or BITFLYER_PLACEHOLDER_MARK in key
+        or BITFLYER_PLACEHOLDER_MARK in secret
+    ):
+        raise RuntimeError("bitFlyerのキーがまだ入っていません。")
+    return key, secret
+
+
+def read_bitflyer_equity(key_file: Path) -> float:
+    """証拠金に、持ち高の含み損益を足した円の額を返す。読むだけで、注文や出金はしない。"""
+    key, secret = load_bitflyer_keys(key_file)
+    timestamp = str(time.time())
+    sign = hmac.new(
+        secret.encode("utf-8"),
+        (timestamp + "GET" + BITFLYER_COLLATERAL_PATH).encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+    request = Request(
+        BITFLYER_URL + BITFLYER_COLLATERAL_PATH,
+        method="GET",
+        headers={
+            "ACCESS-KEY": key,
+            "ACCESS-TIMESTAMP": timestamp,
+            "ACCESS-SIGN": sign,
+            "User-Agent": "kakeibo-mt5-sync/1.0",
+        },
+    )
+    try:
+        with urlopen(request, timeout=15) as response:
+            answer = json.loads(response.read().decode("utf-8"))
+    except HTTPError as error:
+        if error.code == 429:
+            # 同じパソコンのBOTと問い合わせの上限を分け合っているため、やり直さずに次の回を待つ。
+            raise SyncSkipped("bitFlyerの問い合わせの上限に達したため、残高の更新を見送りました。") from error
+        raise RuntimeError(f"bitFlyerからエラーが返されました: {error.code}") from error
+    except (URLError, TimeoutError) as error:
+        raise RuntimeError("bitFlyerへ接続できません。") from error
+    except ValueError as error:
+        raise RuntimeError("bitFlyerの応答を読み取れません。") from error
+
+    try:
+        equity_jpy = float(answer["collateral"]) + float(answer["open_position_pnl"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise RuntimeError("bitFlyerの証拠金を読み取れません。") from error
+    if not math.isfinite(equity_jpy) or equity_jpy < 0:
+        raise RuntimeError("bitFlyerの証拠金が正しくありません。")
+    return equity_jpy
+
+
 def send_equity(
     worker_url: str,
     secret: str,
@@ -201,12 +273,14 @@ def send_equity(
     usd_jpy_rate: float,
     rate_symbol: str,
     rate_time: datetime,
+    bitflyer_equity_jpy: float | None = None,
 ) -> None:
     recorded_at = datetime.now(timezone.utc)
     body = json.dumps(
         {
             "equityUsd": equity_usd,
             "hyperliquidEquityUsd": hyperliquid_equity_usd,
+            "bitflyerEquityJpy": bitflyer_equity_jpy,
             "usdJpyRate": usd_jpy_rate,
             "rateSymbol": rate_symbol,
             "sourceRecordedAt": recorded_at.isoformat(),
@@ -247,6 +321,7 @@ def main() -> int:
         hyperliquid_address = environment.get("HYPERLIQUID_ACCOUNT_ADDRESS", "").strip()
         if hyperliquid_address and not HYPERLIQUID_ADDRESS.fullmatch(hyperliquid_address):
             raise RuntimeError("ハイリキの口座のアドレスが正しくありません。")
+        bitflyer_key_file = environment.get("BITFLYER_API_KEY_FILE", "").strip()
 
         equity_usd, usd_jpy_rate, rate_symbol, rate_time = read_mt5_values(
             Path(args.terminal)
@@ -254,6 +329,10 @@ def main() -> int:
         # ハイリキを読めない回は、合計が急に減らないよう送信ごと見送る。
         hyperliquid_equity_usd = (
             read_hyperliquid_equity(hyperliquid_address) if hyperliquid_address else None
+        )
+        # bitFlyerも同じく、読めない回は送信ごと見送る。
+        bitflyer_equity_jpy = (
+            read_bitflyer_equity(Path(bitflyer_key_file)) if bitflyer_key_file else None
         )
         if not args.dry_run:
             send_equity(
@@ -264,11 +343,13 @@ def main() -> int:
                 usd_jpy_rate,
                 rate_symbol,
                 rate_time,
+                bitflyer_equity_jpy,
             )
 
         logging.info(
-            "MT5%sの有効証拠金の取得%sに成功しました。",
+            "MT5%s%sの残高の取得%sに成功しました。",
             "とハイリキ" if hyperliquid_equity_usd is not None else "",
+            "とbitFlyer" if bitflyer_equity_jpy is not None else "",
             "と送信" if not args.dry_run else "確認",
         )
         print(
@@ -278,6 +359,7 @@ def main() -> int:
                     "sent": not args.dry_run,
                     "currency": "USD",
                     "hyperliquid": hyperliquid_equity_usd is not None,
+                    "bitflyer": bitflyer_equity_jpy is not None,
                     "rateSymbol": rate_symbol,
                 },
                 ensure_ascii=False,

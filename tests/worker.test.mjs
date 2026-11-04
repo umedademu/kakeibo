@@ -183,7 +183,7 @@ function savedFx() {
   return {
     balance: database.prepare("SELECT amount FROM current_balances WHERE account_id = 'fx'").get().amount,
     records: database.prepare(
-      "SELECT equity_usd AS exness, hyperliquid_equity_usd AS hyperliquid, equity_jpy AS yen FROM fx_equity_sync_records ORDER BY id",
+      "SELECT equity_usd AS exness, hyperliquid_equity_usd AS hyperliquid, bitflyer_equity_jpy AS bitflyer, equity_jpy AS yen FROM fx_equity_sync_records ORDER BY id",
     ).all().map((row) => ({ ...row })),
   };
 }
@@ -194,7 +194,7 @@ test("FX口座はMT5とハイリキの合計を円換算し、元のドル建て
   assert.equal((await response.json()).amount, 54075);
   assert.deepEqual(savedFx(), {
     balance: 54075,
-    records: [{ exness: 300, hyperliquid: 60.5, yen: 54075 }],
+    records: [{ exness: 300, hyperliquid: 60.5, bitflyer: null, yen: 54075 }],
   });
 });
 
@@ -217,6 +217,34 @@ test("ハイリキの額が正しくない送信は保存せず、FX口座の金
   }
   assert.deepEqual(savedFx(), {
     balance: 54000,
-    records: [{ exness: 300, hyperliquid: 60, yen: 54000 }],
+    records: [{ exness: 300, hyperliquid: 60, bitflyer: null, yen: 54000 }],
+  });
+});
+
+test("bitFlyerの円建ての額は換算せずに足し、元の額を分けて保存する", async () => {
+  const response = await request("/sync/fx", "POST", {
+    ...fxSync,
+    hyperliquidEquityUsd: 60.5,
+    bitflyerEquityJpy: 100234.6,
+  });
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).amount, 154310);
+  assert.deepEqual(savedFx(), {
+    balance: 154310,
+    records: [{ exness: 300, hyperliquid: 60.5, bitflyer: 100234.6, yen: 154310 }],
+  });
+  const withoutBitflyer = await request("/sync/fx", "POST", { ...fxSync, bitflyerEquityJpy: null });
+  assert.equal((await withoutBitflyer.json()).amount, 45000);
+});
+
+test("bitFlyerの額が正しくない送信は保存せず、FX口座の金額を維持する", async () => {
+  await request("/sync/fx", "POST", { ...fxSync, bitflyerEquityJpy: 1000 });
+  for (const bitflyerEquityJpy of [-1, "1000", {}, true]) {
+    const response = await request("/sync/fx", "POST", { ...fxSync, bitflyerEquityJpy });
+    assert.equal(response.status, 400);
+  }
+  assert.deepEqual(savedFx(), {
+    balance: 46000,
+    records: [{ exness: 300, hyperliquid: null, bitflyer: 1000, yen: 46000 }],
   });
 });

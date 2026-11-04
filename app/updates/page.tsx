@@ -9,6 +9,17 @@ export const metadata: Metadata = {
 
 const updates = [
   {
+    version: "v0.1.38",
+    date: "2026年11月4日",
+    dateTime: "2026-11-04",
+    title: "FX口座にbitFlyerの残高を追加",
+    changes: [
+      "FX口座の金額に、bitFlyerの証拠金と持ち高の含み損益を足すようにしました。日本時間の毎正時に、ExnessとハイリキとあわせてbitFlyerも読み取ります。",
+      "bitFlyerの額は円建てのため、ドル円で換算せずにそのまま足します。",
+      "bitFlyerの残高を読めなかった回は、合計が急に減らないよう更新を見送り、表示中の金額を維持します。",
+    ],
+  },
+  {
     version: "v0.1.37",
     date: "2026年11月2日",
     dateTime: "2026-11-02",

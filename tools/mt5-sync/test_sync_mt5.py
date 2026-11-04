@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+import unittest.mock
 from unittest.mock import patch
 
 import sync_mt5
@@ -94,7 +95,7 @@ class SyncAccountTests(unittest.TestCase):
                 symbol.assert_called_once()
                 send.assert_called_once_with(
                     "https://test.invalid", "test-only", float(equity), None, 150.0,
-                    "USDJPY", datetime.fromtimestamp(1_792_000_000, tz=timezone.utc),
+                    "USDJPY", datetime.fromtimestamp(1_792_000_000, tz=timezone.utc), None,
                 )
                 self.hyperliquid_info.assert_not_called()
 
@@ -242,19 +243,118 @@ class SyncHyperliquidTests(unittest.TestCase):
         send.assert_not_called()
 
 
+def fake_bitflyer_response(body):
+    """bitFlyerの答えを作り物で返す（urlopenの代わり）。"""
+    response = SimpleNamespace(read=lambda: json.dumps(body).encode("utf-8"))
+    opened = unittest.mock.MagicMock()
+    opened.__enter__.return_value = response
+    return opened
+
+
+class SyncBitflyerTests(unittest.TestCase):
+    run_sync = SyncAccountTests.run_sync
+
+    def setUp(self):
+        self.key_file = Path(self.id().split(".")[-1] + ".txt")
+        self.key_file.write_text("API_KEY=test-key\nAPI_SECRET=test-secret==\n", encoding="utf-8")
+        self.addCleanup(self.key_file.unlink)
+
+    def sync_with(self, urlopen_result, account=REAL_ACCOUNT, **options):
+        with patch.object(sync_mt5, "urlopen", side_effect=urlopen_result) as opened:
+            result = self.run_sync(
+                account, environment={"BITFLYER_API_KEY_FILE": str(self.key_file)}, **options,
+            )
+        self.opened = opened
+        return result
+
+    def test_adds_collateral_and_open_pnl_in_yen(self):
+        result, body, _, send = self.sync_with(
+            [fake_bitflyer_response({"collateral": 100000, "open_position_pnl": -234.5,
+                                     "require_collateral": 0, "keep_rate": 0})],
+        )
+        self.assertEqual(result, 0)
+        self.assertTrue(body["bitflyer"])
+        send.assert_called_once()
+        self.assertEqual(send.call_args.args[2], 2500.0)
+        self.assertIsNone(send.call_args.args[3])
+        self.assertAlmostEqual(send.call_args.args[7], 99765.5)
+
+    def test_request_is_signed_read_only_and_keeps_keys_out_of_output(self):
+        with patch.object(sync_mt5.time, "time", return_value=1_792_000_000.5):
+            result, body, _, _ = self.sync_with(
+                [fake_bitflyer_response({"collateral": 1, "open_position_pnl": 0})],
+            )
+        request = self.opened.call_args.args[0]
+        self.assertEqual(request.get_method(), "GET")
+        self.assertEqual(request.full_url, "https://api.bitflyer.com/v1/me/getcollateral")
+        expected = sync_mt5.hmac.new(
+            b"test-secret==", b"1792000000.5GET/v1/me/getcollateral", sync_mt5.hashlib.sha256,
+        ).hexdigest()
+        self.assertEqual(request.get_header("Access-sign"), expected)
+        self.assertEqual(request.get_header("Access-key"), "test-key")
+        self.assertNotIn("test-secret", json.dumps(body))
+
+    def test_broken_or_negative_answers_never_send(self):
+        for answer in ({"collateral": "abc", "open_position_pnl": 0}, {"collateral": 100},
+                       {"collateral": 100, "open_position_pnl": -200}, ["x"]):
+            with self.subTest(answer=answer):
+                result, body, _, send = self.sync_with([fake_bitflyer_response(answer)])
+                self.assertEqual(result, 1)
+                self.assertFalse(body["ok"])
+                send.assert_not_called()
+
+    def test_rate_limit_skips_without_retry(self):
+        error = sync_mt5.HTTPError(sync_mt5.BITFLYER_URL, 429, "Too Many", {}, None)
+        result, body, _, send = self.sync_with(error)
+        self.assertEqual(result, 0)
+        self.assertTrue(body["skipped"])
+        send.assert_not_called()
+        self.opened.assert_called_once()
+
+    def test_connection_failure_never_sends(self):
+        result, body, _, send = self.sync_with(sync_mt5.URLError("down"))
+        self.assertEqual(result, 1)
+        self.assertNotIn("test-key", body["error"])
+        send.assert_not_called()
+
+    def test_missing_or_placeholder_keys_never_ask_or_send(self):
+        for text in (None, "API_KEY=ここにキー\nAPI_SECRET=ここにシークレット\n", "API_KEY=only\n"):
+            with self.subTest(text=text):
+                if text is None:
+                    self.key_file.unlink()
+                else:
+                    self.key_file.write_text(text, encoding="utf-8")
+                result, body, _, send = self.sync_with([])
+                self.assertEqual(result, 1)
+                send.assert_not_called()
+                self.opened.assert_not_called()
+                if text is None:
+                    self.key_file.write_text("", encoding="utf-8")
+
+    def test_demo_mt5_account_never_asks_bitflyer(self):
+        result, body, _, send = self.sync_with(
+            [], account=SimpleNamespace(trade_mode=sync_mt5.mt5.ACCOUNT_TRADE_MODE_DEMO),
+        )
+        self.assertEqual(result, 0)
+        self.assertTrue(body["skipped"])
+        send.assert_not_called()
+        self.opened.assert_not_called()
+
+
 class SendEquityTests(unittest.TestCase):
     def test_body_keeps_exness_and_hyperliquid_separate(self):
         with patch.object(sync_mt5, "urlopen") as urlopen:
             urlopen.return_value.__enter__.return_value = SimpleNamespace(status=200)
             sync_mt5.send_equity(
                 "https://test.invalid/", "test-only", 2500.0, 60.92, 150.0, "USDJPYm",
-                datetime(2026, 10, 28, tzinfo=timezone.utc),
+                datetime(2026, 10, 28, tzinfo=timezone.utc), 99765.5,
             )
         request = urlopen.call_args.args[0]
         self.assertEqual(request.full_url, "https://test.invalid/sync/fx")
         body = json.loads(request.data)
         self.assertEqual(body["equityUsd"], 2500.0)
         self.assertEqual(body["hyperliquidEquityUsd"], 60.92)
+        self.assertEqual(body["bitflyerEquityJpy"], 99765.5)
         self.assertEqual(body["usdJpyRate"], 150.0)
 
 
